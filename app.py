@@ -21,6 +21,7 @@ from src.ui.tabs import comparacao, diagnostico, jogadores, mapa_tatico, metodol
 
 st.set_page_config(page_title="Raio-X de time", layout="wide", initial_sidebar_state="auto")
 data.ensure_data()
+data.refresh_if_changed()
 styles.apply_styles()
 
 df_all = data.load_data()

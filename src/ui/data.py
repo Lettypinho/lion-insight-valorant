@@ -20,6 +20,29 @@ def ensure_data():
         st.stop()
 
 
+def _fingerprint() -> tuple:
+    """Data de modificação e tamanho dos CSVs processados e do código em src/."""
+    files = sorted(DATA.parent.glob("*.csv")) + sorted((ROOT / "src").rglob("*.py"))
+    return tuple((str(p), p.stat().st_mtime_ns, p.stat().st_size) for p in files)
+
+
+@st.cache_resource
+def _seen() -> dict:
+    return {}
+
+
+def refresh_if_changed():
+    """Limpa o cache quando dados ou código mudam sem o processo reiniciar (ex.: push no Streamlit Cloud).
+    O st.cache_data só invalida uma função quando o código DELA muda: sem isto, load_data() devolveria o CSV antigo
+    para um código novo que espera colunas novas."""
+    fp = _fingerprint()
+    seen = _seen()
+    if seen.get("fp") != fp:
+        if "fp" in seen:
+            st.cache_data.clear()
+        seen["fp"] = fp
+
+
 @st.cache_data(show_spinner=False)
 def load_data() -> pd.DataFrame:
     return M.load(DATA.parent) if DATA.name == "team_round.csv" else pd.read_csv(DATA)
