@@ -35,6 +35,12 @@ PLAYER_METRICS = [
            "% das mortes do jogador com o aliado vivo mais próximo muito longe",
            lambda d: d.isolated_deaths, lambda d: d.deaths_with_dist, higher_better=False, unit="mortes",
            group="Jogo coletivo"),
+    Metric("p_ability_kills", "Abates com habilidade",
+           "% dos abates do jogador feitos com habilidade ou ultimate",
+           lambda d: d.kills_ability, lambda d: d.kills_enemy, unit="abates", group="Tipo de abate", neutral=True),
+    Metric("p_ability_deaths", "Mortes por habilidade",
+           "% das mortes do jogador causadas por habilidade ou ultimate do adversário",
+           lambda d: d.deaths_ability, lambda d: d.deaths_enemy, unit="mortes", group="Tipo de abate", neutral=True),
     Metric("p_trade_kills", "Abates de troca",
            "% dos abates do jogador que vingam um aliado morto em até 5 s",
            lambda d: d.trade_kills, lambda d: d.kills_enemy, unit="abates", group="Jogo coletivo", neutral=True),
@@ -61,7 +67,8 @@ def roster(df: pd.DataFrame, team: str) -> pd.DataFrame:
         partidas=("match_id", "nunique"), rounds=("round_num", "size"), abates=("kills_enemy", "sum"),
         mortes=("deaths_enemy", "sum"), dano=("damage_dealt", "sum"), primeiros_abates=("first_kill", "sum"),
         primeiras_mortes=("first_death", "sum"), mortes_trocadas=("deaths_traded", "sum"),
-        abates_de_troca=("trade_kills", "sum")).reset_index()
+        abates_de_troca=("trade_kills", "sum"), abates_habilidade=("kills_ability", "sum"),
+        mortes_habilidade=("deaths_ability", "sum")).reset_index()
     g["kd"] = g["abates"] / g["mortes"].where(g["mortes"] > 0)
     g["adr"] = g["dano"] / g["rounds"]
     duels = g["primeiros_abates"] + g["primeiras_mortes"]

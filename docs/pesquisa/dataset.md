@@ -219,7 +219,7 @@ Validadas por `src/ingestion/validate.py` sobre a base completa:
 - `playerLocations` de uma eliminação = jogadores vivos **menos a vítima** em cerca de 99% dos casos; a posição da vítima está em `victimLocation`.
 - Observadores (`isObserver`) aparecem em 22 partidas e ficam fora das tabelas de jogadores. Após removê-los, toda partida tem 10 jogadores, 5 por lado.
 - `mapId` usa nomes internos, com correspondência 1:1 ao mapa do nome do arquivo (ex.: Jam = Lotus, Triad = Haven, Bonsai = Split, Plummet = Summit).
-- Agente, arma e armadura são UUIDs; **os nomes não estão na base**.
+- Agente, arma e armadura são UUIDs; **os nomes não estão na base** (nenhum nome de arma aparece no texto dos 336 JSONs; 21 armas e 4 armaduras distintas). O único dado legível sobre o que causou um abate é `finishingDamage.damageType` (`Weapon`, `Ability`, `Melee`, `Fall`, `Crush`, `Bomb`) e, para habilidades, `damageItem` (`Ability1`, `Ability2`, `GrenadeAbility`, `Ultimate`). Usar nomes de armas ou agentes exigiria uma tabela de correspondência externa ao material do Hackathon: decisão pendente com a organização.
 - Há equipes com nomes parecidos (ex.: `inatel`, `inatel_gray`, `inatel_legacy`; `usp_stars`, `usp_stars_gc`) que devem ser tratadas como equipes distintas até confirmação.
 
 ## 11. Regra de atualização

@@ -70,6 +70,10 @@ confirmados de cada jogador) e, com um jogador escolhido, os insights dele em tr
 precisa de atenção e perfil (métricas que dependem da função). O mapa tático passa a mostrar só o jogador, e a aba de
 partidas lista as partidas dele e destaca as linhas dele na sequência de abates.
 
+Abaixo do elenco, **Como mata e como morre**: abates e mortes por tipo (arma, habilidade, ultimate, faca, outro), em
+quantidade e %, ao lado da referência. Mostra o time ou, com um jogador escolhido, o jogador. Na sequência de abates do
+round, a coluna **Como** informa o tipo de cada abate (ex.: "Ultimate", "Habilidade de granada").
+
 ### 6.3 Partidas e rounds
 
 Profundidade depois do panorama: escolher uma partida, ver a linha do tempo (round vencido ou perdido, lado) e abrir um round

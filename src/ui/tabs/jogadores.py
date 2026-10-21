@@ -8,9 +8,10 @@ import pandas as pd
 import streamlit as st
 
 from src.analytics import metrics as M
+from src.analytics import kill_types as K
 from src.analytics import players as P
 from src.ui.charts import comparison_figure
-from src.ui.components import evidence_table, insight_card, pct_bar, show_metrics_table
+from src.ui.components import evidence_table, insight_card, pct_bar, show_kind_table, show_metrics_table
 from src.ui.sidebar import Filters
 
 
@@ -26,6 +27,7 @@ def _roster(df_p: pd.DataFrame, f: Filters, names: dict, by_player: dict):
         "K/D": ro["kd"].round(2), "Dano por round": ro["adr"].round(0),
         "Primeiros abates": ro["primeiros_abates"], "Primeiras mortes": ro["primeiras_mortes"],
         "Vitória no duelo de abertura": ro["open_win"] * 100,
+        "Abates com habilidade": ro["abates_habilidade"], "Mortes por habilidade": ro["mortes_habilidade"],
         "Pontos fortes confirmados": [_labels(by_player[p][0], ["ponto_forte"]) for p in ro["player"]],
         "Pontos de atenção confirmados": [_labels(by_player[p][0], ["ponto_de_atencao"]) for p in ro["player"]],
         "Perfil": [_labels(by_player[p][0], ["perfil_acima", "perfil_abaixo"]) for p in ro["player"]],
@@ -35,6 +37,19 @@ def _roster(df_p: pd.DataFrame, f: Filters, names: dict, by_player: dict):
     })
     st.caption("Contagens consideram só abates sobre inimigos. Os pontos confirmados comparam cada jogador com todos os "
                "outros jogadores do recorte e seguem o mesmo critério estatístico das equipes.")
+
+
+def _kinds(kills: pd.DataFrame, deaths: pd.DataFrame, f: Filters):
+    """Como mata e como morre: do jogador escolhido ou, sem jogador, do time."""
+    if f.puuid:
+        bd = K.breakdown(kills, deaths, (kills["killer_puuid"] == f.puuid) & (kills["killer_team"] == f.team),
+                         (deaths["victim_puuid"] == f.puuid) & (deaths["victim_team"] == f.team))
+        st.markdown(f"**Como {f.nick} mata e como morre**")
+        show_kind_table(bd, "do jogador")
+    else:
+        bd = K.breakdown(kills, deaths, kills["killer_team"] == f.team, deaths["victim_team"] == f.team)
+        st.markdown("**Como o time mata e como morre**")
+        show_kind_table(bd, "do time")
 
 
 def _player(df_p: pd.DataFrame, f: Filters, res: pd.DataFrame, dg: dict):
@@ -86,7 +101,8 @@ def _player(df_p: pd.DataFrame, f: Filters, res: pd.DataFrame, dg: dict):
             st.dataframe(out, hide_index=True, width="stretch", height=min(360, 38 + 35 * len(out)))
 
 
-def render(players: pd.DataFrame, f: Filters, names: dict, by_player: dict):
+def render(players: pd.DataFrame, f: Filters, names: dict, by_player: dict, events: pd.DataFrame, df_f: pd.DataFrame):
+    """events: kill_events; df_f: team_round com os filtros da barra lateral (define o recorte dos abates)."""
     if players.empty:
         st.info("Faltam os dados por jogador. Gere-os com `python src/ingestion/build_features.py --processed data/processed`.")
         return
@@ -96,6 +112,9 @@ def render(players: pd.DataFrame, f: Filters, names: dict, by_player: dict):
         return
     st.subheader("Elenco")
     _roster(df_p, f, names, by_player)
+    if not events.empty and "kill_kind" in events.columns:
+        # abates feitos no recorte (lado de quem abateu) e mortes sofridas (lado de quem morreu)
+        _kinds(K.in_scope(events, df_f, "killer"), K.in_scope(events, df_f, "victim"), f)
     if f.player and f.player in by_player:
         st.divider()
         _player(df_p, f, *by_player[f.player])

@@ -43,6 +43,11 @@ def main():
         planted_att, planted_def = (r.role == "Attacker") & r.bomb_planted, (r.role == "Defender") & r.bomb_planted
         ref["plant_uncovered"] = ((planted_att & r.pun).sum(), planted_att.sum())
         ref["plant_punish"] = ((planted_def & r.pun).sum(), planted_def.sum())
+        # tipo de abate: habilidade ou ultimate (direto de fact_kill.damage_type)
+        ab = k.damage_type == "Ability"
+        mine_k, mine_d = k.killer_side == k.my_side, k.victim_side == k.my_side
+        ref["ability_kills"] = ((ab & mine_k).sum(), mine_k.sum())
+        ref["ability_deaths"] = ((ab & mine_d).sum(), mine_d.sum())
         # economia
         me_l = np.where(r.role == "Attacker", r.attacker_loadout_total, r.defender_loadout_total)
         op_l = np.where(r.role == "Attacker", r.defender_loadout_total, r.attacker_loadout_total)

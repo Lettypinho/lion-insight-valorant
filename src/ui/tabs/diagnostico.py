@@ -34,6 +34,13 @@ def _cards(dg: dict, R: pd.DataFrame, df: pd.DataFrame, team: str):
                 st.caption("Nenhum ponto de atenção confirmado isolado.")
             for i in bad:
                 insight_card(i, R, df, team)
+    prof = [i for i in rest if i["quality"] == "perfil"]
+    if prof:
+        st.markdown("**Perfil** — característica do time; não é boa nem ruim por si só")
+        cols = st.columns(min(len(prof), 3))
+        for k, i in enumerate(prof):
+            with cols[k % len(cols)]:
+                insight_card(i, R, df, team)
 
 
 def _labels(res: pd.DataFrame, quality: str) -> str:

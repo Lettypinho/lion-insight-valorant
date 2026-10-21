@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
+from src.analytics import kill_types as K
 from src.analytics import metrics as M
 from src.analytics.matches import match_frame, round_moments, spike_planted_at, team_matches
 from src.ui.charts import MAP_CONFIG, colors, tactical_map, timeline_figure
@@ -64,6 +65,7 @@ def _kill_feed(kills: pd.DataFrame, names: dict, puuid, key: str):
         "#": kills["seq_in_round"].to_numpy(), "Tempo": [_clock(t) for t in kills["time_in_round_ms"]],
         "Quem abateu": [_who(names, p, t) for p, t in zip(kills["killer_puuid"], kills["killer_team"])],
         "Quem morreu": [_who(names, p, t) for p, t in zip(kills["victim_puuid"], kills["victim_team"])],
+        "Como": [K.describe(k, i) for k, i in zip(kills["kill_kind"], kills["damage_item"])],
         "Observação": notes})
     mark = ((kills["killer_puuid"] == puuid) | (kills["victim_puuid"] == puuid)).to_numpy() if puuid else None
     hl = f"background-color: color-mix(in srgb, {colors()['team']} 22%, transparent)"
@@ -84,9 +86,11 @@ def _round_overview(r, kills: pd.DataFrame, sil: pd.DataFrame, view: dict, team:
         k = kills[m & kills["victim_x"].notna()]
         layers.append(dict(name=name, x=k["victim_x"], y=k["victim_y"], color=color, symbol="x", size=13,
                            labels=k["seq_in_round"].astype(str),
-                           hover=[f"#{s} · {_clock(t)} · {_who(names, v, vt)} abatido por {names.get(kp, '?')}"
-                                  for s, t, v, vt, kp in zip(k["seq_in_round"], k["time_in_round_ms"], k["victim_puuid"],
-                                                             k["victim_team"], k["killer_puuid"])]))
+                           hover=[f"#{s} · {_clock(t)} · {_who(names, v, vt)} abatido por {names.get(kp, '?')} "
+                                  f"({K.describe(kk, ki).lower()})"
+                                  for s, t, v, vt, kp, kk, ki in zip(k["seq_in_round"], k["time_in_round_ms"], k["victim_puuid"],
+                                                                     k["victim_team"], k["killer_puuid"], k["kill_kind"],
+                                                                     k["damage_item"])]))
     if r.bomb_planted and pd.notna(r.plant_x):
         layers.append(dict(name=f"Spike (site {r.plant_site})", x=[r.plant_x], y=[r.plant_y], color=C["s3"],
                            symbol="diamond", size=14, hover=[f"Plant no site {r.plant_site} aos {_clock(r.plant_time_ms)}"]))
@@ -232,7 +236,8 @@ def _round_detail(r, ev: pd.DataFrame, sil: pd.DataFrame, view: dict, team: str,
     if m["kind"] == "kill":
         k = kills[kills["seq_in_round"] == m["seq"]].iloc[0]
         st.markdown(f"#{m['seq']} aos {_clock(k.time_in_round_ms)}: **{_who(names, k.killer_puuid, k.killer_team)}** abateu "
-                    f"**{_who(names, k.victim_puuid, k.victim_team)}**" + (" · spike já plantado" if spike else ""))
+                    f"**{_who(names, k.victim_puuid, k.victim_team)}** com **{K.describe(k.kill_kind, k.damage_item).lower()}**"
+                    + (" · spike já plantado" if spike else ""))
         victim = dict(x=k.victim_x, y=k.victim_y, puuid=k.victim_puuid) if pd.notna(k.victim_x) else None
         _snapshot("kill", k.killer_puuid, pos_match[pos_match["kill_id"] == k.kill_id], team_of, sil, view, team, names,
                   puuid, f"snap_{base}", zoom_key, victim=victim, spike=spike, close_up=close_up)

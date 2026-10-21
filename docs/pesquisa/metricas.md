@@ -107,6 +107,27 @@ Quando a equipe planta, o plantador fica exposto? Quando o adversário planta, a
 ### Não incluído
 "Morte durante o defuse" não é calculável: a base registra apenas o defuse concluído, não as tentativas. Inferir pela proximidade do spike misturaria tentativas de defuse com lutas no site.
 
+## 9.2 Tipo de abate
+
+### Classificação (de `finishingDamage` de cada abate sobre inimigo)
+| `damageType` | `damageItem` | Tipo |
+|---|---|---|
+| `Weapon` | UUID da arma | arma |
+| `Ability` | `Ultimate` | ultimate |
+| `Ability` | `Ability1`, `Ability2`, `GrenadeAbility` | habilidade |
+| `Melee` | UUID da faca | faca |
+| `Fall`, `Crush` | vazio | outro |
+
+Base (21/10/2026): 45.121 arma, 812 ultimate, 414 habilidade, 15 faca, 9 outro. As armas só têm UUID, sem nome.
+
+### Fórmulas (equipe e jogador)
+- **Abates com habilidade**: `abates com habilidade ou ultimate / abates sobre inimigo`. **Perfil**.
+- **Mortes por habilidade**: `mortes por habilidade ou ultimate do adversário / mortes por inimigo`. **Perfil**.
+
+São perfil porque dependem dos agentes escolhidos (e dos agentes do adversário). Na base, nenhuma equipe teve diferença
+confirmada; 17 jogadores tiveram perfil confirmado. A distribuição completa por tipo (arma, habilidade, ultimate, faca,
+outro) é exibida de forma descritiva, ao lado da referência (todos os outros do recorte).
+
 ## 10. Ataque e defesa
 
 Calcular separadamente:
@@ -194,6 +215,8 @@ Calculadas sobre `player_round.csv` (uma linha por jogador em cada round) com o 
 | Mortes trocadas | mortes do jogador vingadas em até 5 s / mortes do jogador | maior é melhor |
 | Mortes isoladas | mortes com aliado vivo mais próximo a mais de 3.000 unidades / mortes com distância calculável | menor é melhor |
 | Abates de troca | abates do jogador que vingaram um aliado em até 5 s / abates do jogador | **perfil** |
+| Abates com habilidade | abates com habilidade ou ultimate / abates do jogador (ver 9.2) | **perfil** |
+| Mortes por habilidade | mortes por habilidade ou ultimate / mortes do jogador (ver 9.2) | **perfil** |
 
 **Perfil**: métricas que dependem da função do jogador (um duelista abre mais rounds; um suporte faz mais trocas). Quando a diferença é confirmada, ela é apresentada como "acima/abaixo da referência", nunca como ponto forte ou ponto de atenção.
 

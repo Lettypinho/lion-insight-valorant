@@ -62,6 +62,7 @@ src/
 ├── analytics/
 │   ├── metrics.py         # métricas, referência da competição, intervalos e análise por mapa
 │   ├── players.py         # métricas, elenco e insights por jogador
+│   ├── kill_types.py      # tipo de abate (arma, habilidade, ultimate...)
 │   ├── objectives.py      # plants por site
 │   └── matches.py         # partidas do time e referência de uma partida
 ├── insights/
@@ -86,6 +87,7 @@ tests/
 ├── test_metrics.py        # confere as métricas por caminho independente
 ├── test_objectives_matches.py # casos pequenos: sites, placar, referência de partida, por mapa
 ├── test_players.py        # casos pequenos por jogador e soma do elenco = equipe
+├── test_kill_types.py     # classificação e distribuição por tipo de abate
 ├── smoke_report.py        # relatório de uma equipe no terminal
 └── calibration.py         # taxa de falso alerta com equipes sorteadas
 

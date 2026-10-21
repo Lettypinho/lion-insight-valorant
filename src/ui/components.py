@@ -68,6 +68,21 @@ def show_metrics_table(res: pd.DataFrame):
         "Time": pct_bar("Time"), "Referência": pct_bar("Referência", "Outros times, nas mesmas condições")})
 
 
+def show_kind_table(bd: pd.DataFrame, who: str):
+    """Como a unidade (time ou jogador) mata e morre, por tipo de abate, ao lado da referência."""
+    t = bd[(bd["kills"] > 0) | (bd["deaths"] > 0) | bd["kind"].isin(["arma", "habilidade", "ultimate"])]
+    st.dataframe(pd.DataFrame({
+        "Tipo": t["label"],
+        f"Abates {who}": t["kills"], "% dos abates": t["kills_share"] * 100, "Referência (abates)": t["ref_kills_share"] * 100,
+        f"Mortes {who}": t["deaths"], "% das mortes": t["deaths_share"] * 100, "Referência (mortes)": t["ref_deaths_share"] * 100,
+    }), hide_index=True, width="stretch", column_config={
+        "% dos abates": pct_bar("% dos abates"), "Referência (abates)": pct_bar("Referência (abates)"),
+        "% das mortes": pct_bar("% das mortes"), "Referência (mortes)": pct_bar("Referência (mortes)")})
+    st.caption(f"{bd.attrs.get('n_kills', 0)} abates e {bd.attrs.get('n_deaths', 0)} mortes sobre inimigos no recorte. "
+               "Referência: todos os outros, nas mesmas condições. A base só identifica a arma por um código, sem nome; "
+               "habilidade e ultimate vêm do tipo de dano do abate.")
+
+
 def evidence_table(df_f: pd.DataFrame, team: str, key: str, quality, key_col: str = "team"):
     ev = D.evidence(df_f, team, key, quality, key_col)
     out = pd.DataFrame({

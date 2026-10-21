@@ -63,6 +63,7 @@ python src/ingestion/build_features.py --processed data/processed
 python tests/test_metrics.py
 python tests/test_objectives_matches.py
 python tests/test_players.py
+python tests/test_kill_types.py
 python tests/smoke_report.py --team ufmt_turuna
 
 python -m streamlit run app.py

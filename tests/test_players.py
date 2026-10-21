@@ -8,17 +8,19 @@ from src.analytics import metrics as M
 from src.analytics import players as P
 
 
-def _r(player, match, rnd, won=False, fk=False, fd=False, has_fk=True, kills=0, deaths=0, traded=0, iso=0, trade_kills=0):
+def _r(player, match, rnd, won=False, fk=False, fd=False, has_fk=True, kills=0, deaths=0, traded=0, iso=0, trade_kills=0,
+       k_ab=0, d_ab=0):
     return dict(player=player, team=player.split("|")[0], match_id=match, round_num=rnd, won=won, first_kill=fk,
                 first_death=fd, has_fk=has_fk, kills_enemy=kills, deaths_enemy=deaths, deaths_traded=traded,
-                isolated_deaths=iso, deaths_with_dist=deaths, trade_kills=trade_kills)
+                isolated_deaths=iso, deaths_with_dist=deaths, trade_kills=trade_kills, kills_ability=k_ab,
+                deaths_ability=d_ab)
 
 
 def test_metricas_de_um_jogador():
     a = "t|a"
     df = pd.DataFrame([
-        _r(a, "m1", 0, won=True, fk=True, kills=2, trade_kills=1),
-        _r(a, "m1", 1, won=False, fd=True, deaths=1, traded=1),
+        _r(a, "m1", 0, won=True, fk=True, kills=2, trade_kills=1, k_ab=1),
+        _r(a, "m1", 1, won=False, fd=True, deaths=1, traded=1, d_ab=1),
         _r(a, "m1", 2, won=True, kills=1),
         _r(a, "m1", 3, has_fk=False, deaths=1, iso=1),
         _r("u|b", "m2", 0, won=True, fk=True, kills=1),
@@ -32,6 +34,8 @@ def test_metricas_de_um_jogador():
     assert got["p_trade_rate"] == (1, 2)
     assert got["p_isolated"] == (1, 2)
     assert got["p_trade_kills"] == (1, 3)
+    assert got["p_ability_kills"] == (1, 3)
+    assert got["p_ability_deaths"] == (1, 2)
     # referencia = o outro jogador
     assert res.loc["p_open_win", "ref_rate"] == 1.0 and np.isnan(res.loc["p_trade_rate", "ref_rate"])
 
@@ -54,6 +58,8 @@ def test_base_real_soma_do_elenco_bate_com_a_equipe():
     assert ro["mortes"].sum() == t["deaths_enemy"].sum()
     assert ro["primeiros_abates"].sum() == t["first_kill"].sum()
     assert ro["rounds"].sum() == 5 * len(t)
+    assert ro["abates_habilidade"].sum() == t["kills_ability"].sum()
+    assert ro["mortes_habilidade"].sum() == t["deaths_ability"].sum()
 
 
 if __name__ == "__main__":
