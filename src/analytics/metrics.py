@@ -189,3 +189,15 @@ def team_metrics(df: pd.DataFrame, team: str, min_n=MIN_N, min_matches=MIN_MATCH
                          percentile=pct, n_teams_ref=len(rates), verdict=verdict, quality=quality,
                          gap=gap, higher_better=m.higher_better))
     return pd.DataFrame(rows)
+
+
+def team_metrics_by_map(df: pd.DataFrame, team: str) -> list:
+    """Uma analise por mapa jogado pelo time. `df` ja deve vir filtrado (competicao/mapa/lado).
+    Em cada mapa a referencia e formada pelos outros times NO MESMO mapa.
+    Retorna lista de dicts (map_name, n_matches, rounds, rounds_won, res), do mapa mais jogado ao menos jogado."""
+    mine = df[df["team"] == team]
+    out = []
+    for mp, g in mine.groupby("map_name"):
+        out.append(dict(map_name=mp, n_matches=int(g["match_id"].nunique()), rounds=len(g),
+                        rounds_won=int(g["won"].sum()), res=team_metrics(df[df["map_name"] == mp], team)))
+    return sorted(out, key=lambda r: (-r["n_matches"], -r["rounds"], r["map_name"]))

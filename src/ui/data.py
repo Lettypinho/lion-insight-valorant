@@ -28,3 +28,9 @@ def compute(team, comps, maps, role):
     df = M.apply_filters(load_data(), list(comps) or None, list(maps) or None, role)
     res = M.team_metrics(df, team)
     return res, D.diagnose(res)
+
+
+@st.cache_data(show_spinner=False)
+def compute_by_map(team, comps, maps, role):
+    df = M.apply_filters(load_data(), list(comps) or None, list(maps) or None, role)
+    return [dict(r, dg=D.diagnose(r["res"])) for r in M.team_metrics_by_map(df, team)]

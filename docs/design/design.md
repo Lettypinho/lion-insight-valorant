@@ -49,6 +49,14 @@ Separar claramente:
 - pontos fortes;
 - pontos de atenção.
 
+A aba Diagnóstico é organizada em:
+- **Panorama geral** — insights confirmados somando todos os mapas do recorte, mais a tabela com todos os números;
+- **Por mapa** — resumo de cada mapa jogado (partidas, rounds vencidos, pontos confirmados, amostra) e uma aba por mapa com insights, todos os números e os rounds de cada métrica.
+
+Duas leituras convivem:
+- **confirmada** — ponto forte ou ponto de atenção, somente quando o critério estatístico é atendido;
+- **descritiva** — todas as métricas, inclusive de um mapa com uma única partida, ordenadas da melhor para a pior em relação à referência, sempre com amostra e com aviso de amostra pequena. Uma partida não confirma padrão, mas deve continuar analisável.
+
 ## 7. Evidências
 
 Ao abrir um insight, mostrar tabela com:

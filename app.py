@@ -35,12 +35,13 @@ if mine.empty:
 
 res, dg = data.compute(f.team, tuple(f.comps), tuple(f.maps), f.role)
 R = res.set_index("key")
+by_map = data.compute_by_map(f.team, tuple(f.comps), tuple(f.maps), f.role)
 
 components.header(df_all, mine, f)
 
 tab_diag, tab_comp, tab_rounds, tab_met = st.tabs(["Diagnóstico", "Comparação com a competição", "Rounds de evidência", "Metodologia"])
 with tab_diag:
-    diagnostico.render(dg, R, df_f, f.team)
+    diagnostico.render(dg, R, res, df_f, f.team, by_map)
 with tab_comp:
     comparacao.render(res)
 with tab_rounds:

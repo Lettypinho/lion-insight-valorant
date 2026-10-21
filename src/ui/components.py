@@ -32,6 +32,28 @@ def header(df_all: pd.DataFrame, mine: pd.DataFrame, f: Filters):
                    "Os diagnósticos ficam desativados até haver amostra suficiente.")
 
 
+READING = {"ponto_forte": "Ponto forte (confirmado)", "ponto_de_atencao": "Ponto de atenção (confirmado)",
+           "em_linha": "Sem diferença confiável", "insuficiente": "Amostra pequena: não confirmado"}
+
+
+def metrics_table(res: pd.DataFrame) -> pd.DataFrame:
+    """Todas as métricas com dados, da melhor para a pior em relação à referência.
+    Descritiva: mostra o que aconteceu mesmo quando a amostra não permite confirmar um padrão."""
+    t = res[res["n"] > 0].copy()
+    t["_good"] = t["delta_pp"].where(t["higher_better"], -t["delta_pp"])  # > 0 = melhor que a referência
+    t = t.sort_values("_good", ascending=False)
+    return pd.DataFrame({
+        "Métrica": t["label"] + t["higher_better"].map({True: "", False: " (menor é melhor)"}),
+        "Time": [pct(v, 1) for v in t["rate"]],
+        "Referência": [pct(v, 1) for v in t["ref_rate"]],
+        "Diferença": [f"{num(v, 1, True)} pp" for v in t["delta_pp"]],
+        "Frente à referência": ["▲ melhor" if g > 0 else "▼ pior" if g < 0 else "= igual" for g in t["_good"]],
+        "Amostra": [f"{int(x)} de {int(n)} {u}" for x, n, u in zip(t["x"], t["n"], t["unit"])],
+        "Partidas": t["n_matches"].astype(int),
+        "Leitura": t["quality"].map(READING),
+    })
+
+
 def evidence_table(df_f: pd.DataFrame, team: str, key: str, quality):
     ev = D.evidence(df_f, team, key, quality)
     out = pd.DataFrame({
