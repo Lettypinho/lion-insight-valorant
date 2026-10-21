@@ -62,7 +62,7 @@ python src/ingestion/build_features.py --processed data/processed
 python tests/test_metrics.py
 python tests/smoke_report.py --team ufmt_turuna
 
-streamlit run app.py
+python -m streamlit run app.py
 ```
 
 O app abre em http://localhost:8501 e lê apenas `data/processed/team_round.csv`. Para abrir direto em uma equipe: `http://localhost:8501/?team=azure_bears_golden`.

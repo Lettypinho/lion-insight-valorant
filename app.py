@@ -1,7 +1,7 @@
 """
 Raio-X de time: como um time joga em relação à competição, com os rounds que provam.
 
-Rodar (da raiz do projeto):   streamlit run app.py
+Rodar (da raiz do projeto):   python -m streamlit run app.py
 Dados: apenas data/processed/team_round.csv (gerado a partir dos JSONs fornecidos pela organização).
 Tudo e pos-partida: nada aqui interfere em partidas em andamento.
 """
