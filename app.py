@@ -17,7 +17,7 @@ from src.analytics import metrics as M  # noqa: E402
 from src.ui import components, data, styles  # noqa: E402
 from src.ui.formatting import team_name  # noqa: E402
 from src.ui.sidebar import render_sidebar  # noqa: E402
-from src.ui.tabs import comparacao, diagnostico, metodologia, rounds  # noqa: E402
+from src.ui.tabs import comparacao, diagnostico, mapa_tatico, metodologia, partidas, rounds  # noqa: E402
 
 st.set_page_config(page_title="Raio-X de time", layout="wide", initial_sidebar_state="auto")
 data.ensure_data()
@@ -39,9 +39,14 @@ by_map = data.compute_by_map(f.team, tuple(f.comps), tuple(f.maps), f.role)
 
 components.header(df_all, mine, f)
 
-tab_diag, tab_comp, tab_rounds, tab_met = st.tabs(["Diagnóstico", "Comparação com a competição", "Rounds de evidência", "Metodologia"])
+tab_diag, tab_map, tab_match, tab_comp, tab_rounds, tab_met = st.tabs(
+    ["Diagnóstico", "Mapa tático", "Partidas e rounds", "Comparação com a competição", "Rounds de evidência", "Metodologia"])
 with tab_diag:
     diagnostico.render(dg, R, res, df_f, f.team, by_map)
+with tab_map:
+    mapa_tatico.render(df_f, f.team, data.load_events(), data.load_silhouette(), data.load_map_views())
+with tab_match:
+    partidas.render(df_all, df_f, f, data.load_events(), data.load_silhouette(), data.load_map_views())
 with tab_comp:
     comparacao.render(res)
 with tab_rounds:

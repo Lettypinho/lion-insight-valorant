@@ -44,14 +44,24 @@ def metrics_table(res: pd.DataFrame) -> pd.DataFrame:
     t = t.sort_values("_good", ascending=False)
     return pd.DataFrame({
         "Métrica": t["label"] + t["higher_better"].map({True: "", False: " (menor é melhor)"}),
-        "Time": [pct(v, 1) for v in t["rate"]],
-        "Referência": [pct(v, 1) for v in t["ref_rate"]],
+        "Time": t["rate"] * 100,
+        "Referência": t["ref_rate"] * 100,
         "Diferença": [f"{num(v, 1, True)} pp" for v in t["delta_pp"]],
         "Frente à referência": ["▲ melhor" if g > 0 else "▼ pior" if g < 0 else "= igual" for g in t["_good"]],
         "Amostra": [f"{int(x)} de {int(n)} {u}" for x, n, u in zip(t["x"], t["n"], t["unit"])],
         "Partidas": t["n_matches"].astype(int),
         "Leitura": t["quality"].map(READING),
     })
+
+
+def pct_bar(label: str, help=None):
+    """Coluna de taxa (0 a 100) exibida como barra, sem perder o número."""
+    return st.column_config.ProgressColumn(label, format="%.1f%%", min_value=0, max_value=100, help=help)
+
+
+def show_metrics_table(res: pd.DataFrame):
+    st.dataframe(metrics_table(res), hide_index=True, width="stretch", column_config={
+        "Time": pct_bar("Time"), "Referência": pct_bar("Referência", "Outros times, nas mesmas condições")})
 
 
 def evidence_table(df_f: pd.DataFrame, team: str, key: str, quality):

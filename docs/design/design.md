@@ -57,6 +57,17 @@ Duas leituras convivem:
 - **confirmada** — ponto forte ou ponto de atenção, somente quando o critério estatístico é atendido;
 - **descritiva** — todas as métricas, inclusive de um mapa com uma única partida, ordenadas da melhor para a pior em relação à referência, sempre com amostra e com aviso de amostra pequena. Uma partida não confirma padrão, mas deve continuar analisável.
 
+### 6.1 Mapa tático
+
+Mapa desenhado com as coordenadas da base (sem imagem). Seletor de mapa e de camada:
+mortes do time (trocada, isolada sem troca, sem troca), abates do time, primeiro duelo, plants no ataque e plants sofridos na defesa.
+Selecionar pontos lista os rounds correspondentes. Abaixo, plants por site comparados com a referência do mesmo mapa.
+
+### 6.2 Partidas e rounds
+
+Profundidade depois do panorama: escolher uma partida, ver a linha do tempo (round vencido ou perdido, lado) e abrir um round
+clicando nele. O round mostra resultado, lado, economia, spike, sequência de abates e as posições das mortes.
+
 ## 7. Evidências
 
 Ao abrir um insight, mostrar tabela com:

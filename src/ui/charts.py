@@ -3,6 +3,8 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from src.ui.map_view import inside, to_view
+
 
 def is_dark() -> bool:
     try:
@@ -11,11 +13,90 @@ def is_dark() -> bool:
         return False
 
 
-def comparison_figure(res):
+def colors() -> dict:
+    """Tokens de cor por tema. s1..s3 = 3 primeiras cores categóricas (validadas para distinção em todos os pares)."""
     dark = is_dark()
-    C = dict(text="#f0efec" if dark else "#0b0b0b", muted="#c3c2b7" if dark else "#52514e",
-             grid="#2b2b29" if dark else "#e7e6e2", surface="#1a1a19" if dark else "#fcfcfb",
-             team="#3987e5" if dark else "#2a78d6", ref="#a3a29a" if dark else "#73726d")
+    return dict(text="#f0efec" if dark else "#0b0b0b", muted="#c3c2b7" if dark else "#52514e",
+                grid="#2b2b29" if dark else "#e7e6e2", surface="#1a1a19" if dark else "#fcfcfb",
+                team="#3987e5" if dark else "#2a78d6", ref="#a3a29a" if dark else "#73726d",
+                silhouette="#3a3a37" if dark else "#d9d8d3",
+                s1="#3987e5" if dark else "#2a78d6", s2="#d95926" if dark else "#eb6834", s3="#199e70" if dark else "#1baf7a")
+
+
+FONT = dict(family="Figtree, system-ui, sans-serif", size=13)
+
+
+def tactical_map(sil: pd.DataFrame, layers: list, view: dict, height=620):
+    """Mapa desenhado pelas próprias coordenadas da base (sem imagem externa).
+    sil: colunas x, y (silhueta). layers: dicts com name, x, y, color, symbol, hover (lista de textos)
+    e, opcionalmente, labels (texto curto escrito ao lado de cada ponto). x/y em coordenadas do jogo.
+    view: orientação e enquadramento do mapa (src/ui/map_view.py).
+    O traço 0 é a silhueta; o traço k (k >= 1) é layers[k - 1], com os pontos na mesma ordem recebida."""
+    C = colors()
+    su, sw = to_view(sil["x"], sil["y"], view["k"])
+    keep = inside(view, su, sw)
+    fig = go.Figure()
+    fig.add_trace(go.Scattergl(x=su[keep], y=sw[keep], mode="markers", name="Mapa (posições de todos os jogadores)",
+                               # mapas pouco jogados têm silhueta rala: ponto maior para o desenho continuar legível
+                               marker=dict(size=3 if keep.sum() >= 10000 else 4 if keep.sum() >= 4000 else 6,
+                                           color=C["silhouette"]), hoverinfo="skip", showlegend=False))
+    for ly in layers:
+        u, w = to_view(ly["x"], ly["y"], view["k"])
+        fig.add_trace(go.Scattergl(
+            x=u, y=w, mode="markers+text" if ly.get("labels") is not None else "markers", name=ly["name"],
+            hovertext=ly["hover"], text=ly.get("labels"), textposition="top center", textfont=dict(color=C["text"], size=12),
+            hovertemplate="%{hovertext}<extra></extra>",
+            marker=dict(size=ly.get("size", 9), color=ly["color"], symbol=ly.get("symbol", "circle"),
+                        line=dict(width=1.5, color=C["surface"]))))
+    fig.update_layout(
+        height=height, margin=dict(l=0, r=0, t=10, b=0), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(**FONT, color=C["text"]), dragmode="lasso", hovermode="closest",
+        legend=dict(orientation="h", y=1.02, x=0, yanchor="bottom", font=dict(color=C["muted"])),
+        xaxis=dict(visible=False, range=view["xrange"], constrain="domain"),
+        yaxis=dict(visible=False, range=view["yrange"], scaleanchor="x", scaleratio=1, constrain="domain"))
+    return fig
+
+
+def sites_figure(ps: pd.DataFrame, value: str, ref_value: str, title: str):
+    """Barras por site: time x referência (outros times no mesmo mapa). value/ref_value são taxas 0..1."""
+    C = colors()
+    fig = go.Figure()
+    for name, col, n_col, color in [("Time", value, "plants", C["team"]), ("Referência (outros times)", ref_value, "ref_plants", C["ref"])]:
+        fig.add_trace(go.Bar(
+            x=[f"Site {s}" for s in ps["site"]], y=ps[col] * 100, name=name, marker=dict(color=color, cornerradius=4),
+            text=[f"{v * 100:.0f}%".replace(".", ",") if pd.notna(v) else "—" for v in ps[col]], textposition="outside",
+            customdata=ps[n_col], hovertemplate=f"<b>{name}</b><br>%{{x}}: %{{y:.1f}}%<br>%{{customdata}} plants<extra></extra>"))
+    fig.update_layout(
+        title=dict(text=title, font=dict(size=14)), barmode="group", bargap=0.35, bargroupgap=0.08, height=300,
+        margin=dict(l=10, r=10, t=40, b=10), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(**FONT, color=C["text"]), legend=dict(orientation="h", y=-0.15, x=0, font=dict(color=C["muted"])),
+        yaxis=dict(range=[0, 115], ticksuffix="%", gridcolor=C["grid"], zeroline=False, tickfont=dict(color=C["muted"])),
+        xaxis=dict(tickfont=dict(color=C["text"])))
+    return fig
+
+
+def timeline_figure(rounds: pd.DataFrame, selected=None):
+    """Faixa com um bloco por round. rounds: round_label, won, role_pt, hover. selected = round_label destacado."""
+    C = colors()
+    fig = go.Figure()
+    for won, name, color in [(True, "Round vencido", C["team"]), (False, "Round perdido", C["ref"])]:
+        r = rounds[rounds["won"] == won]
+        fig.add_trace(go.Bar(
+            x=r["round_label"], y=[1] * len(r), name=name, marker=dict(color=color, cornerradius=4,
+            line=dict(width=[3 if x == selected else 0 for x in r["round_label"]], color=C["text"])),
+            text=r["role_pt"].str[0], textposition="inside", insidetextanchor="middle",
+            textfont=dict(color="#ffffff", size=11), customdata=r["hover"], hovertemplate="%{customdata}<extra></extra>"))
+    fig.update_layout(
+        barmode="overlay", bargap=0.12, height=130, margin=dict(l=0, r=0, t=6, b=0), paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)", font=dict(**FONT, color=C["text"]), showlegend=True,
+        legend=dict(orientation="h", y=-0.45, x=0, font=dict(color=C["muted"])),
+        yaxis=dict(visible=False, range=[0, 1]),
+        xaxis=dict(tickmode="linear", dtick=1, tickfont=dict(color=C["muted"], size=11), showgrid=False, fixedrange=True))
+    return fig
+
+
+def comparison_figure(res):
+    C = colors()
     ys, ticktext, tickvals, rows = 0, [], [], []
     last_group = None
     for _, r in res.iterrows():

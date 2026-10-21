@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """
-Gera `team_round.csv`: UMA linha por (partida, round, time).
+Gera, a partir das tabelas de data/processed:
+  * `team_round.csv`     UMA linha por (partida, round, time) - base das metricas;
+  * `kill_events.csv`    um abate sobre inimigo por linha, com posicoes - mapa tatico e detalhe de round;
+  * `map_silhouette.csv` amostra das posicoes de todos os jogadores por mapa - desenha o mapa sem imagem externa.
 
 Le apenas as tabelas de data/processed (saida do ingest.py). Nenhum dado externo.
 As metricas em si (taxas, referencia, diagnosticos) ficam em src/analytics/metrics.py:
@@ -19,6 +22,7 @@ import pandas as pd
 ISOLATED_DIST = 3000        # morte "isolada": aliado vivo mais proximo a mais de 3000 unidades do jogo
 ECON_ADV_RATIO = 1.25       # loadout do time >= 1,25x o do adversario  -> vantagem economica
 ECON_DISADV_RATIO = 0.80    # loadout do time <= 0,80x o do adversario  -> desvantagem economica
+SILHOUETTE_PER_MAP = 20000  # pontos por mapa na silhueta (amostra fixa, seed 0)
 
 
 def side_rows(fr: pd.DataFrame, role: str) -> pd.DataFrame:
@@ -30,7 +34,8 @@ def side_rows(fr: pd.DataFrame, role: str) -> pd.DataFrame:
         "won": fr["winning_side"] == fr[f"{me}_side"],
         "team_loadout": fr[f"{me}_loadout_total"], "opp_loadout": fr[f"{opp}_loadout_total"],
         "bomb_planted": fr["bomb_planted"].astype(bool), "plant_site": fr["plant_site"],
-        "plant_time_ms": fr["plant_time_ms"], "result_code": fr["result_code"],
+        "plant_time_ms": fr["plant_time_ms"], "plant_x": fr["plant_x"], "plant_y": fr["plant_y"],
+        "result_code": fr["result_code"],
     })
 
 
@@ -79,6 +84,25 @@ def build(processed: Path) -> pd.DataFrame:
     return tr.sort_values(["match_date", "match_id", "round_num", "role"]).reset_index(drop=True)
 
 
+def build_kill_events(processed: Path) -> pd.DataFrame:
+    dm = pd.read_csv(processed / "dim_match.csv", usecols=["match_id", "map_name"])
+    fk = pd.read_csv(processed / "fact_kill.csv", low_memory=False)
+    ek = fk[fk["death_type"] == "enemy_kill"].copy()
+    ek["isolated"] = ek["victim_nearest_ally_dist"].notna() & (ek["victim_nearest_ally_dist"] > ISOLATED_DIST)
+    cols = ["kill_id", "match_id", "round_num", "seq_in_round", "time_in_round_ms", "killer_team", "victim_team",
+            "victim_x", "victim_y", "killer_x", "killer_y", "is_first_kill", "death_was_traded", "is_trade_kill", "isolated"]
+    return ek[cols].merge(dm, on="match_id", how="left")
+
+
+def build_silhouette(processed: Path) -> pd.DataFrame:
+    dm = pd.read_csv(processed / "dim_match.csv", usecols=["match_id", "map_name"])
+    pos = pd.read_csv(processed / "fact_kill_position.csv", usecols=["kill_id", "x", "y"])
+    pos["match_id"] = pos["kill_id"].str.split(":").str[0]
+    pos = pos.merge(dm, on="match_id")[["map_name", "x", "y"]]
+    out = pos.sample(frac=1, random_state=0).groupby("map_name").head(SILHOUETTE_PER_MAP)
+    return out.round().astype({"x": int, "y": int}).sort_values(["map_name", "x", "y"]).reset_index(drop=True)
+
+
 def check(tr: pd.DataFrame, processed: Path):
     fr = pd.read_csv(processed / "fact_round.csv")
     fk = pd.read_csv(processed / "fact_kill.csv", low_memory=False)
@@ -118,6 +142,12 @@ def main():
     ok = check(tr, p)
     tr.to_csv(p / "team_round.csv", index=False)
     print(f"\nteam_round.csv: {len(tr):,d} linhas ->", p / "team_round.csv")
+    ke = build_kill_events(p)
+    ke.to_csv(p / "kill_events.csv", index=False)
+    print(f"kill_events.csv: {len(ke):,d} linhas ->", p / "kill_events.csv")
+    sil = build_silhouette(p)
+    sil.to_csv(p / "map_silhouette.csv", index=False)
+    print(f"map_silhouette.csv: {len(sil):,d} linhas ->", p / "map_silhouette.csv")
     raise SystemExit(0 if ok else 1)
 
 

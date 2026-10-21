@@ -83,6 +83,16 @@ A aplicação será demonstrável via Streamlit.
 - resumo da competição;
 - página individual de partida.
 
+### Decisão de escopo — visualização espacial (21/10/2026)
+
+Incluídos a pedido do time, por não exigirem calibração nem imagem externa:
+
+- **mapa tático por pontos**: mortes, abates, primeiro duelo e plants da equipe, desenhados sobre uma silhueta formada pelas posições de todos os jogadores registradas na própria base;
+- **plants por site**: distribuição e vitória pós-plant por site, comparadas com a referência do mesmo mapa;
+- **partidas e rounds**: linha do tempo da partida e detalhe de cada round (sequência de abates, economia, spike e posições).
+
+Heatmaps de densidade e calibração com imagens oficiais continuam fora do MVP.
+
 ## 6. Fora do MVP
 
 - autenticação;
@@ -96,7 +106,7 @@ A aplicação será demonstrável via Streamlit.
 - scraping;
 - APIs externas de partidas;
 - heatmaps completos;
-- calibração espacial dos nove mapas;
+- calibração espacial dos mapas e uso de imagens oficiais de mapa;
 - análise avançada de habilidades;
 - inteligência artificial generativa como dependência central;
 - sistema completo de chaveamento sem fonte confiável de bracket.

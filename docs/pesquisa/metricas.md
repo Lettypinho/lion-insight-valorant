@@ -77,6 +77,10 @@ No MVP, priorizar pelo menos a situação 5v4, caso seja simples de calcular ap�
 ### Fórmula
 `rounds vencidos pelo ataque após plant / rounds com plant realizado pelo ataque`
 
+### Por site
+Mesma fórmula restrita aos plants de um site. Também é exibida a distribuição dos plants:
+`plants da equipe no site / plants da equipe`. Só é comparada dentro do mesmo mapa (os sites diferem entre mapas).
+
 ## 9. Retake Success
 
 ### Fórmula inicial
@@ -113,6 +117,12 @@ A análise econômica é P1 até que uma classificação confiável de eco, forc
 Para métricas de taxa, a referência principal da competição deve ser calculada usando todas as oportunidades válidas do universo comparável.
 
 Evitar média simples das porcentagens de cada equipe quando isso distorcer o resultado.
+
+Referências usadas na aplicação:
+
+- **recorte geral**: todas as outras equipes, com os mesmos filtros de competição, mapa e lado;
+- **por mapa**: as outras equipes no mesmo mapa, com os mesmos filtros;
+- **uma partida**: as outras equipes no mesmo mapa da partida, com os mesmos filtros. Dentro da própria partida o único outro time é o adversário, que não serve de referência.
 
 ## 14. Amostra mínima
 
