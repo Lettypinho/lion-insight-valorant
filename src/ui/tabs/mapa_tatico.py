@@ -7,7 +7,7 @@ import pandas as pd
 import streamlit as st
 
 from src.analytics.objectives import plant_sites
-from src.ui.charts import colors, sites_figure, tactical_map
+from src.ui.charts import MAP_CONFIG, colors, sites_figure, tactical_map
 from src.ui.formatting import ROLE_PT, pct, team_name
 
 LAYERS = ["Mortes do time", "Abates do time", "Primeiro duelo", "Plants (ataque)", "Plants sofridos (defesa)"]
@@ -129,10 +129,11 @@ def render(df_f: pd.DataFrame, team: str, events: pd.DataFrame, sil: pd.DataFram
     n_matches = tr["match_id"].nunique()
     st.caption(f"{n_matches} partida(s) e {len(tr)} rounds do time em {mp}, com os filtros da barra lateral. "
                "O mapa é desenhado pelas posições de todos os jogadores registradas na base. "
-               "Clique, arraste uma caixa ou desenhe um laço para listar os rounds dos pontos.")
+               "Clique, arraste uma caixa ou desenhe um laço para listar os rounds dos pontos. "
+               "Roda do mouse dá zoom; duplo clique volta ao mapa inteiro.")
     event = st.plotly_chart(tactical_map(sil[sil["map_name"] == mp], [b[0] for b in built], views[mp]), width="stretch",
                             theme=None, on_select="rerun", selection_mode=("points", "box", "lasso"),
-                            key=f"tm_chart_{mp}_{layer}", config={"displayModeBar": False})
+                            key=f"tm_chart_{mp}_{layer}", config=MAP_CONFIG)
     sel = _selected_rounds(event, [b[1] for b in built])
     if sel.empty:
         st.caption("Nenhum ponto selecionado.")

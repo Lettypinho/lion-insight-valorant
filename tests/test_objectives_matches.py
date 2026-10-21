@@ -53,6 +53,26 @@ def test_match_frame_referencia_no_mesmo_mapa():
     assert sorted(zip(mf["team"], mf["match_id"])) == [("a", "m1"), ("b", "m1"), ("c", "m3")]
 
 
+def test_spike_so_aparece_depois_do_plant():
+    from types import SimpleNamespace as R
+    from src.analytics.matches import spike_planted_at
+    r = R(bomb_planted=True, plant_time_ms=50000)
+    assert not spike_planted_at(r, 49999)
+    assert spike_planted_at(r, 50000) and spike_planted_at(r, 70000)
+    assert not spike_planted_at(R(bomb_planted=False, plant_time_ms=np.nan), 99999)
+
+
+def test_momentos_do_round_em_ordem():
+    from types import SimpleNamespace as R
+    from src.analytics.matches import round_moments
+    kills = pd.DataFrame({"seq_in_round": [1, 2, 3], "time_in_round_ms": [20000, 50000, 80000]})
+    r = R(bomb_planted=True, plant_time_ms=50000, defuse_time_ms=90000)
+    assert [m["id"] for m in round_moments(kills, r)] == ["k1", "plant", "k2", "k3", "defuse"]  # empate: plant antes
+    r2 = R(bomb_planted=False, plant_time_ms=np.nan, defuse_time_ms=np.nan)
+    assert [m["id"] for m in round_moments(kills, r2)] == ["k1", "k2", "k3"]
+    assert round_moments(kills.iloc[:0], r2) == []
+
+
 def test_team_metrics_by_map_usa_mesmo_mapa():
     df = M.load(ROOT / "data" / "processed")
     team = "ufmt_turuna"

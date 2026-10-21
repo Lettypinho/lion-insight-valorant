@@ -20,18 +20,29 @@ def colors() -> dict:
                 grid="#2b2b29" if dark else "#e7e6e2", surface="#1a1a19" if dark else "#fcfcfb",
                 team="#3987e5" if dark else "#2a78d6", ref="#a3a29a" if dark else "#73726d",
                 silhouette="#3a3a37" if dark else "#d9d8d3",
-                s1="#3987e5" if dark else "#2a78d6", s2="#d95926" if dark else "#eb6834", s3="#199e70" if dark else "#1baf7a")
+                s1="#3987e5" if dark else "#2a78d6", s2="#d95926" if dark else "#eb6834", s3="#199e70" if dark else "#1baf7a",
+                # seu time x adversário, como no jogo (aliado azul, inimigo vermelho); também vencido x perdido na linha do
+                # tempo. Par validado para daltonismo (ΔE 21,6 claro / 19,2 escuro). Vermelho = sempre negativo para o time.
+                ally="#3987e5" if dark else "#2a78d6", enemy="#e66767" if dark else "#e34948")
 
 
 FONT = dict(family="Figtree, system-ui, sans-serif", size=13)
 
+# mapas: roda do mouse dá zoom, arrastar move (ou seleciona, no mapa tático), duplo clique volta ao enquadramento inicial
+MAP_CONFIG = {"scrollZoom": True, "displaylogo": False, "doubleClick": "reset",
+              "modeBarButtonsToRemove": ["toImage", "autoScale2d", "select2d"]}
 
-def tactical_map(sil: pd.DataFrame, layers: list, view: dict, height=620):
+
+def tactical_map(sil: pd.DataFrame, layers: list, view: dict, height=620, lines=None, focus=None,
+                 dragmode="lasso", uirevision=None):
     """Mapa desenhado pelas próprias coordenadas da base (sem imagem externa).
     sil: colunas x, y (silhueta). layers: dicts com name, x, y, color, symbol, hover (lista de textos)
     e, opcionalmente, labels (texto curto escrito ao lado de cada ponto). x/y em coordenadas do jogo.
     view: orientação e enquadramento do mapa (src/ui/map_view.py).
-    O traço 0 é a silhueta; o traço k (k >= 1) é layers[k - 1], com os pontos na mesma ordem recebida."""
+    lines: dicts com x, y (listas com None separando segmentos), color, dash, width - desenhadas sob os pontos.
+    focus: pontos (x, y) do jogo para enquadrar de perto (ex.: matador, vítima e spike); None = mapa inteiro.
+    uirevision: mantém o zoom do usuário entre atualizações enquanto o valor não mudar.
+    O traço 0 é a silhueta; sem `lines`, o traço k (k >= 1) é layers[k - 1], com os pontos na mesma ordem recebida."""
     C = colors()
     su, sw = to_view(sil["x"], sil["y"], view["k"])
     keep = inside(view, su, sw)
@@ -40,6 +51,13 @@ def tactical_map(sil: pd.DataFrame, layers: list, view: dict, height=620):
                                # mapas pouco jogados têm silhueta rala: ponto maior para o desenho continuar legível
                                marker=dict(size=3 if keep.sum() >= 10000 else 4 if keep.sum() >= 4000 else 6,
                                            color=C["silhouette"]), hoverinfo="skip", showlegend=False))
+    for ln in lines or []:
+        u, w = to_view([float("nan") if v is None else v for v in ln["x"]],
+                       [float("nan") if v is None else v for v in ln["y"]], view["k"])
+        # Scattergl (não Scatter): traços SVG ficam por baixo da camada WebGL da silhueta e apareceriam apagados
+        fig.add_trace(go.Scattergl(x=u, y=w, mode="lines", name=ln.get("name", ""), showlegend=ln.get("legend", False),
+                                 hoverinfo="skip", connectgaps=False,
+                                 line=dict(color=ln["color"], width=ln.get("width", 2), dash=ln.get("dash", "solid"))))
     for ly in layers:
         u, w = to_view(ly["x"], ly["y"], view["k"])
         fig.add_trace(go.Scattergl(
@@ -47,14 +65,23 @@ def tactical_map(sil: pd.DataFrame, layers: list, view: dict, height=620):
             hovertext=ly["hover"], text=ly.get("labels"), textposition="top center", textfont=dict(color=C["text"], size=12),
             hovertemplate="%{hovertext}<extra></extra>",
             marker=dict(size=ly.get("size", 9), color=ly["color"], symbol=ly.get("symbol", "circle"),
-                        line=dict(width=1.5, color=C["surface"]))))
+                        line=dict(width=ly.get("line_width", 1.5), color=ly.get("line_color", C["surface"])))))
+    xrange, yrange = view["xrange"], view["yrange"]
+    if focus:
+        fu, fw = to_view([p[0] for p in focus], [p[1] for p in focus], view["k"])
+        span = max(FOCUS_MIN_SPAN, fu.max() - fu.min(), fw.max() - fw.min()) * 1.35
+        cu, cw = (fu.max() + fu.min()) / 2, (fw.max() + fw.min()) / 2
+        xrange, yrange = [cu - span / 2, cu + span / 2], [cw - span / 2, cw + span / 2]
     fig.update_layout(
         height=height, margin=dict(l=0, r=0, t=10, b=0), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(**FONT, color=C["text"]), dragmode="lasso", hovermode="closest",
+        font=dict(**FONT, color=C["text"]), dragmode=dragmode, hovermode="closest", uirevision=uirevision,
         legend=dict(orientation="h", y=1.02, x=0, yanchor="bottom", font=dict(color=C["muted"])),
-        xaxis=dict(visible=False, range=view["xrange"], constrain="domain"),
-        yaxis=dict(visible=False, range=view["yrange"], scaleanchor="x", scaleratio=1, constrain="domain"))
+        xaxis=dict(visible=False, range=xrange, constrain="domain"),
+        yaxis=dict(visible=False, range=yrange, scaleanchor="x", scaleratio=1, constrain="domain"))
     return fig
+
+
+FOCUS_MIN_SPAN = 3000  # menor área (unidades do jogo) ao aproximar no lance
 
 
 def sites_figure(ps: pd.DataFrame, value: str, ref_value: str, title: str):
@@ -79,7 +106,7 @@ def timeline_figure(rounds: pd.DataFrame, selected=None):
     """Faixa com um bloco por round. rounds: round_label, won, role_pt, hover. selected = round_label destacado."""
     C = colors()
     fig = go.Figure()
-    for won, name, color in [(True, "Round vencido", C["team"]), (False, "Round perdido", C["ref"])]:
+    for won, name, color in [(True, "Round vencido", C["team"]), (False, "Round perdido", C["enemy"])]:
         r = rounds[rounds["won"] == won]
         fig.add_trace(go.Bar(
             x=r["round_label"], y=[1] * len(r), name=name, marker=dict(color=color, cornerradius=4,

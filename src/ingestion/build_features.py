@@ -36,6 +36,7 @@ def side_rows(fr: pd.DataFrame, role: str) -> pd.DataFrame:
         "team_loadout": fr[f"{me}_loadout_total"], "opp_loadout": fr[f"{opp}_loadout_total"],
         "bomb_planted": fr["bomb_planted"].astype(bool), "plant_site": fr["plant_site"],
         "plant_time_ms": fr["plant_time_ms"], "plant_x": fr["plant_x"], "plant_y": fr["plant_y"], "planter_puuid": fr["planter_puuid"],
+        "defuser_puuid": fr["defuser_puuid"], "defuse_time_ms": fr["defuse_time_ms"],
         "result_code": fr["result_code"],
     })
 

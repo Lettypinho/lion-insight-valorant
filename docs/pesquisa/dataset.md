@@ -197,6 +197,15 @@ Não incluir heatmaps completos no MVP.
 
 Confirmado na base (21/10/2026): todas as 46.753 mortes têm `victimLocation` e 4.653 plants têm `plantLocation` e site. As posições de todos os jogadores (`playerLocations`) desenham a silhueta de cada mapa em unidades do jogo, o que permite plotar pontos sem imagem e sem calibração. Há posições muito fora do mapa (ex.: x ≈ −50.000 em Breeze e Haven, contra um mapa que vai de cerca de −3.600 a 11.000); a área exibida usa os percentis 0,2% a 99,8% da silhueta. Para exibição, cada mapa é girado em passos de 90° (sem espelhar) até os sites ficarem na horizontal com o A à direita, a partir da posição mediana dos plants de cada site (`src/ui/map_view.py`). Não foi conferido se o resultado coincide com o minimapa oficial.
 
+`playerLocations[].viewRadians` segue a convenção `atan2(dy, dx)` nas coordenadas do jogo: em 99% dos abates a mira do
+matador aponta para a vítima (diferença mediana de 0,3°). Usado para desenhar a direção da mira no momento do abate.
+
+Cada round com plant ou defuse traz `plantPlayerLocations` / `defusePlayerLocations` (posição e mira de cada jogador vivo
+no instante): 4.653 plants e 1.349 defuses, todos com posições, e quem plantou/desarmou sempre aparece entre elas.
+Ingeridos em `fact_objective_position.csv` (33.878 linhas). `plantRoundTime`/`defuseRoundTime` usam o mesmo relógio de
+`timeSinceRoundStartMillis` dos abates: o número de posições no plant bate com os vivos calculados pelos horários dos
+abates em 98,9% dos plants (98,2% dos defuses); com 30 s de deslocamento a concordância cai para ~10%.
+
 ## 10. Regras confirmadas pela ingestão
 
 Validadas por `src/ingestion/validate.py` sobre a base completa:

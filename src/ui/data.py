@@ -47,6 +47,25 @@ def load_map_views() -> dict:
 
 
 @st.cache_data(show_spinner=False)
+def load_kill_positions() -> pd.DataFrame:
+    """Posição e direção da mira de cada jogador vivo (menos a vítima) no instante de cada abate.
+    Vem de fact_kill_position.csv (ingest.py). Vazio se não existir."""
+    p = DATA.parent / "fact_kill_position.csv"
+    if not p.exists():
+        return pd.DataFrame()
+    pos = pd.read_csv(p, usecols=["kill_id", "puuid", "x", "y", "view_radians"])
+    pos["match_id"] = pos["kill_id"].str.split(":").str[0]
+    return pos
+
+
+@st.cache_data(show_spinner=False)
+def load_objective_positions() -> pd.DataFrame:
+    """Posição e mira de cada jogador vivo no instante do plant e do defuse (fact_objective_position.csv, ingest.py)."""
+    p = DATA.parent / "fact_objective_position.csv"
+    return pd.read_csv(p) if p.exists() else pd.DataFrame()
+
+
+@st.cache_data(show_spinner=False)
 def load_players() -> pd.DataFrame:
     """Uma linha por jogador e round (player_round.csv). Vazio se o arquivo ainda nao foi gerado."""
     return P.load(DATA.parent) if (DATA.parent / "player_round.csv").exists() else pd.DataFrame()

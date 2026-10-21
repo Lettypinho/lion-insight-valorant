@@ -298,6 +298,17 @@ def process(path, T, issues, seen_ids):
             "attacker_spent_total": spent.get(att), "defender_spent_total": spent.get(dfn),
             "n_kills": len(enemy_rows),
         })
+        # posicao e mira de cada jogador vivo no instante do plant e do defuse
+        for event, key, t_ms in (("plant", "plantPlayerLocations", rr["plantRoundTime"] if planted else None),
+                                 ("defuse", "defusePlayerLocations", rr["defuseRoundTime"] if defused else None)):
+            for loc_ in rr.get(key) or []:
+                if loc_["puuid"] in roster:
+                    T["fact_objective_position"].append({
+                        "match_id": match_id, "round_num": rn, "event": event, "time_in_round_ms": t_ms,
+                        "puuid": loc_["puuid"], "side": side_of[loc_["puuid"]],
+                        "x": loc_["location"]["x"], "y": loc_["location"]["y"],
+                        "view_radians": round(loc_["viewRadians"], 4),
+                    })
 
 
 def main():

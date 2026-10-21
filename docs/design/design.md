@@ -75,6 +75,22 @@ partidas lista as partidas dele e destaca as linhas dele na sequência de abates
 Profundidade depois do panorama: escolher uma partida, ver a linha do tempo (round vencido ou perdido, lado) e abrir um round
 clicando nele. O round mostra resultado, lado, economia, spike, sequência de abates e as posições das mortes.
 
+**Momentos do round**: abates, plant e defuse num mesmo seletor, em ordem cronológica. Ao clicar numa linha da
+sequência de abates (ou escolher no seletor), o mapa mostra a foto daquele instante — quem morreu (✕), quem
+abateu/plantou/desarmou (círculo com anel; linha tracejada até a vítima num abate), todos os vivos dos dois times com
+nick e um traço curto na direção da mira. O spike (◆) só aparece se já estava plantado naquele instante.
+As posições só existem nos instantes de abates, plant e defuse (não é replay contínuo).
+
+**Zoom nos mapas**: roda do mouse aproxima, arrastar move, duplo clique volta ao enquadramento inicial. O zoom feito
+pelo usuário é mantido ao trocar de momento; a opção "Aproximar no lance" enquadra automaticamente quem agiu, a vítima
+e o spike.
+
+**Cores**: azul = seu time, vermelho = adversário nos mapas de round, como no jogo; na linha do tempo da partida, azul =
+round vencido e vermelho = round perdido. O par foi validado para daltonismo (ΔE 21,6 no tema claro, 19,2 no escuro).
+Vermelho sempre indica algo negativo para o time (adversário, round perdido, ponto de atenção). O estado (vivo, abateu,
+morreu) é dado pelo formato, não por outra cor. No plant e no defuse, quem agiu está em cima do spike: aparece um único
+◆ com o nick, com a borda na cor do time dele.
+
 ## 7. Evidências
 
 Ao abrir um insight, mostrar tabela com:

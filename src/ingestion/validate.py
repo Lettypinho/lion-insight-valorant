@@ -32,12 +32,13 @@ def main():
     P = Path(a.processed)
     t = {n: pd.read_csv(P / f"{n}.csv", low_memory=False) for n in
          ["dim_match", "fact_player_match", "fact_round", "fact_round_player", "fact_kill",
-          "fact_kill_position", "fact_kill_assist", "dim_team", "dim_player"]}
+          "fact_kill_position", "fact_kill_assist", "dim_team", "dim_player", "fact_objective_position"]}
 
     files = sorted(Path(a.input).rglob("*.json"))
     raw_kills = Counter(); raw_deaths = Counter(); raw_assist = Counter()
     raw_pm = {}  # (match, puuid) -> (kills, deaths, assists)
-    n_rounds = n_kills = n_pos_expected = 0
+    n_rounds = n_kills = n_pos_expected = n_obj_expected = 0
+    actor_in_locs = actor_total = 0
     alive_ok = alive_bad = victim_in_locs = locs_total = 0
     for f in files:
         d = json.loads(f.read_text(encoding="utf-8"))
@@ -49,6 +50,12 @@ def main():
                 raw_pm[(mid, p["puuid"])] = (s["kills"], s["deaths"], s["assists"], s["roundsPlayed"])
         for rr in d["roundResults"]:
             n_rounds += 1
+            for actor, key in (("bombPlanter", "plantPlayerLocations"), ("bombDefuser", "defusePlayerLocations")):
+                locs = [l for l in (rr.get(key) or []) if l["puuid"] in roster]
+                n_obj_expected += len(locs)
+                if rr.get(actor):
+                    actor_total += 1
+                    actor_in_locs += any(l["puuid"] == rr[actor] for l in locs)
             ks = sorted([k for ps in rr["playerStats"] for k in ps["kills"]],
                         key=lambda k: k["timeSinceRoundStartMillis"])
             alive = len(roster)
@@ -78,6 +85,12 @@ def main():
     check("kills: total bate", len(fk) == n_kills, f"({len(fk)} vs {n_kills})")
     check("posicoes de kill: total bate", len(t["fact_kill_position"]) == n_pos_expected)
     check("kill_id unico", fk["kill_id"].is_unique)
+    op = t["fact_objective_position"]
+    check("posicoes de plant/defuse: total bate", len(op) == n_obj_expected, f"({len(op)} vs {n_obj_expected})")
+    print(f"quem plantou/desarmou aparece nas posicoes do evento: {actor_in_locs}/{actor_total}")
+    n_ev = op.groupby(["match_id", "round_num", "event"]).size()
+    check("plant/defuse: no maximo 10 jogadores por evento", (n_ev <= 10).all())
+    check("plants com posicoes = rounds com plant", len(n_ev.xs("plant", level="event")) == int(fr["bomb_planted"].sum()))
 
     # kills/deaths/assists por jogador vs stats oficiais.
     # Regra descoberta e validada: kill = abate sobre inimigo (sem suicidio/teamkill);

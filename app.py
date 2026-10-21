@@ -52,7 +52,7 @@ with tab_map:
 with tab_match:
     player_matches = set(players.loc[players["player"] == f.player, "match_id"]) if f.player else None
     partidas.render(df_all, df_f, f, data.load_events(), data.load_silhouette(), data.load_map_views(), names,
-                    player_matches)
+                    players, data.load_kill_positions(), data.load_objective_positions(), player_matches)
 with tab_comp:
     comparacao.render(res)
 with tab_rounds:
