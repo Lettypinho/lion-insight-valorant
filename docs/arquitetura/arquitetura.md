@@ -61,8 +61,20 @@ src/
 │   └── build_features.py  # gera team_round.csv (1 linha por equipe e round)
 ├── analytics/
 │   └── metrics.py         # métricas, referência da competição e intervalos
-└── insights/
-    └── engine.py          # diagnósticos e rounds de evidência
+├── insights/
+│   └── engine.py          # diagnósticos e rounds de evidência
+└── ui/
+    ├── data.py            # carregamento e cálculo com cache do Streamlit
+    ├── formatting.py      # formatação de nomes, porcentagens e números
+    ├── styles.py          # CSS pontual
+    ├── sidebar.py         # seleção de equipe e filtros
+    ├── components.py      # cabeçalho, cartão de insight e tabela de evidências
+    ├── charts.py          # gráfico de comparação (Plotly)
+    └── tabs/
+        ├── diagnostico.py # aba Diagnóstico
+        ├── comparacao.py  # aba Comparação com a competição
+        ├── rounds.py      # aba Rounds de evidência
+        └── metodologia.py # aba Metodologia
 
 tests/
 ├── test_metrics.py        # confere as métricas por caminho independente
@@ -73,10 +85,10 @@ data/
 ├── input/                 # JSONs fornecidos pelo Hackathon
 └── processed/             # CSVs gerados pela ingestão
 
-app.py                     # aplicação Streamlit
+app.py                     # ponto de entrada: só orquestra a página
 ```
 
-Diferenças em relação à estrutura sugerida: não há `models/` (os dados circulam como DataFrames do pandas), o benchmark está em `analytics/metrics.py` e a UI está inteira em `app.py`. O pipeline gera CSVs em `data/processed/`, que funcionam como o pré-processamento previsto na seção 6.
+Diferenças em relação à estrutura sugerida: não há `models/` (os dados circulam como DataFrames do pandas), o benchmark está em `analytics/metrics.py` e cada aba da UI tem seu próprio arquivo em `ui/tabs/`. Nenhum arquivo de `ui/` calcula métricas: todos consomem `analytics` e `insights`. O pipeline gera CSVs em `data/processed/`, que funcionam como o pré-processamento previsto na seção 6.
 
 ## 5. Camadas
 

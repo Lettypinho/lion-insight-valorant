@@ -43,7 +43,8 @@ O foco não é construir uma plataforma completa, mas provar o núcleo da propos
 - `src/ingestion/` — leitura dos JSONs, validação e geração das tabelas.
 - `src/analytics/` — métricas e referência da competição.
 - `src/insights/` — diagnósticos e rounds de evidência.
-- `app.py` — aplicação Streamlit.
+- `src/ui/` — interface Streamlit: dados com cache, filtros, componentes, gráficos e uma pasta `tabs/` com um arquivo por aba.
+- `app.py` — ponto de entrada da aplicação; só monta a página a partir de `src/ui/`.
 - `tests/` — testes e relatórios de conferência.
 - `data/input/` — JSONs fornecidos pelo Hackathon.
 - `data/processed/` — tabelas geradas pela ingestão.
