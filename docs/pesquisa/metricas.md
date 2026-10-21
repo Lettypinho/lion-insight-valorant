@@ -144,3 +144,25 @@ Exemplo:
 Equipe: 74%  
 Competição: 65%  
 Diferença: `+9 p.p.`
+
+## 16. Métricas por jogador
+
+Calculadas sobre `player_round.csv` (uma linha por jogador em cada round) com o mesmo método das equipes: razão `x / n`, partida como unidade e o mesmo critério para confirmar uma diferença.
+
+- **Jogador** = par (equipe, `puuid`). Um mesmo `puuid` que jogou por duas equipes é analisado separadamente em cada uma.
+- **Referência** = todos os outros jogadores do recorte, com os mesmos filtros de competição, mapa e lado.
+- Só abates sobre inimigo contam (sem suicídio, teamkill ou detonação), como nas métricas de equipe.
+
+| Métrica | Fórmula | Leitura |
+|---|---|---|
+| Participação no duelo de abertura | rounds em que o jogador fez ou sofreu o primeiro abate / rounds com algum abate | **perfil** |
+| Vitória no duelo de abertura | rounds em que o jogador fez o primeiro abate / rounds em que fez ou sofreu o primeiro abate | maior é melhor |
+| Conversão após o seu primeiro abate | rounds vencidos em que o jogador fez o primeiro abate / rounds em que fez o primeiro abate | maior é melhor |
+| Sobrevivência | rounds em que o jogador não foi abatido por inimigo / rounds jogados | maior é melhor |
+| Mortes trocadas | mortes do jogador vingadas em até 5 s / mortes do jogador | maior é melhor |
+| Mortes isoladas | mortes com aliado vivo mais próximo a mais de 3.000 unidades / mortes com distância calculável | menor é melhor |
+| Abates de troca | abates do jogador que vingaram um aliado em até 5 s / abates do jogador | **perfil** |
+
+**Perfil**: métricas que dependem da função do jogador (um duelista abre mais rounds; um suporte faz mais trocas). Quando a diferença é confirmada, ela é apresentada como "acima/abaixo da referência", nunca como ponto forte ou ponto de atenção.
+
+Números descritivos do elenco, sem veredito: partidas, rounds, abates, mortes, K/D (abates / mortes), dano por round (`damage_dealt` / rounds) e primeiros abates e mortes.

@@ -6,6 +6,7 @@ import pandas as pd
 import streamlit as st
 
 from src.analytics import metrics as M
+from src.analytics import players as P
 from src.insights import engine as D
 from src.ui.map_view import build_views
 
@@ -43,6 +44,29 @@ def load_map_views() -> dict:
     """Orientação e enquadramento de cada mapa (ver src/ui/map_view.py)."""
     sil = load_silhouette()
     return build_views(load_data(), sil) if not sil.empty else {}
+
+
+@st.cache_data(show_spinner=False)
+def load_players() -> pd.DataFrame:
+    """Uma linha por jogador e round (player_round.csv). Vazio se o arquivo ainda nao foi gerado."""
+    return P.load(DATA.parent) if (DATA.parent / "player_round.csv").exists() else pd.DataFrame()
+
+
+@st.cache_data(show_spinner=False)
+def load_names() -> dict:
+    """puuid -> nick mais recente."""
+    return P.load_names(DATA.parent) if (DATA.parent / "dim_player.csv").exists() else {}
+
+
+@st.cache_data(show_spinner=False)
+def compute_players(team, comps, maps, role):
+    """Metricas e diagnostico de cada jogador do time. Referencia = todos os outros jogadores do recorte."""
+    df = M.apply_filters(load_players(), list(comps) or None, list(maps) or None, role)
+    out = {}
+    for pl in df.loc[df["team"] == team, "player"].unique():
+        res = P.player_metrics(df, pl)
+        out[pl] = (res, D.diagnose(res))
+    return out
 
 
 @st.cache_data(show_spinner=False)

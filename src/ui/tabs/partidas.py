@@ -42,7 +42,7 @@ def _round_hover(rr: pd.DataFrame) -> list:
     return out
 
 
-def _round_detail(r, ev: pd.DataFrame, sil: pd.DataFrame, view: dict, team: str):
+def _round_detail(r, ev: pd.DataFrame, sil: pd.DataFrame, view: dict, team: str, names: dict, puuid=None):
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Resultado", "Venceu" if r.won else "Perdeu", _result(r.result_code), delta_color="off")
     c2.metric("Lado", ROLE_PT[r.role])
@@ -67,10 +67,19 @@ def _round_detail(r, ev: pd.DataFrame, sil: pd.DataFrame, view: dict, team: str)
                 if k.death_was_traded: n.append("morte trocada")
                 if k.isolated: n.append("vítima isolada")
                 notes.append(", ".join(n) or "—")
-            st.dataframe(pd.DataFrame({
-                "#": kills["seq_in_round"], "Tempo": [_clock(t) for t in kills["time_in_round_ms"]],
-                "Quem abateu": kills["killer_team"].map(team_name), "Quem morreu": kills["victim_team"].map(team_name),
-                "Observação": notes}), hide_index=True, width="stretch", height=min(420, 38 + 35 * len(kills)))
+            def who(p, t):
+                return f"{names.get(p, '?')} ({team_name(t)})"
+            feed = pd.DataFrame({
+                "#": kills["seq_in_round"].to_numpy(), "Tempo": [_clock(t) for t in kills["time_in_round_ms"]],
+                "Quem abateu": [who(p, t) for p, t in zip(kills["killer_puuid"], kills["killer_team"])],
+                "Quem morreu": [who(p, t) for p, t in zip(kills["victim_puuid"], kills["victim_team"])],
+                "Observação": notes})
+            mark = ((kills["killer_puuid"] == puuid) | (kills["victim_puuid"] == puuid)).to_numpy() if puuid else None
+            hl = f"background-color: color-mix(in srgb, {colors()['team']} 22%, transparent)"
+            styled = feed.style.apply(lambda row: [hl if mark is not None and mark[row.name] else "" for _ in row], axis=1)
+            st.dataframe(styled, hide_index=True, width="stretch", height=min(420, 38 + 35 * len(kills)))
+            if puuid:
+                st.caption(f"Linhas destacadas: abates e mortes de {names.get(puuid, 'jogador')}.")
     with right:
         C = colors()
         layers = []
@@ -78,8 +87,9 @@ def _round_detail(r, ev: pd.DataFrame, sil: pd.DataFrame, view: dict, team: str)
                                ("Mortes do adversário", kills["victim_team"] != team, C["s1"])]:
             k = kills[m & kills["victim_x"].notna()]
             layers.append(dict(name=name, x=k["victim_x"], y=k["victim_y"], color=color, labels=k["seq_in_round"].astype(str),
-                               hover=[f"#{s} · {_clock(t)} · {team_name(v)} morreu" for s, t, v in
-                                      zip(k["seq_in_round"], k["time_in_round_ms"], k["victim_team"])]))
+                               hover=[f"#{s} · {_clock(t)} · {names.get(v, '?')} ({team_name(vt)}) abatido por {names.get(kp, '?')}"
+                                      for s, t, v, vt, kp in zip(k["seq_in_round"], k["time_in_round_ms"], k["victim_puuid"],
+                                                                 k["victim_team"], k["killer_puuid"])]))
         if r.bomb_planted and pd.notna(r.plant_x):
             layers.append(dict(name=f"Plant (site {r.plant_site})", x=[r.plant_x], y=[r.plant_y], color=C["s3"],
                                symbol="diamond", size=14, hover=[f"Plant no site {r.plant_site}"]))
@@ -88,10 +98,15 @@ def _round_detail(r, ev: pd.DataFrame, sil: pd.DataFrame, view: dict, team: str)
         st.caption("Números = ordem dos abates. Posição de quem morreu.")
 
 
-def render(df_all: pd.DataFrame, df_f: pd.DataFrame, f: Filters, events: pd.DataFrame, sil: pd.DataFrame, views: dict):
+def render(df_all: pd.DataFrame, df_f: pd.DataFrame, f: Filters, events: pd.DataFrame, sil: pd.DataFrame, views: dict,
+           names: dict, player_matches=None):
+    """player_matches: partidas do jogador escolhido (None = toda a equipe)."""
     team = f.team
     # placar e lista de partidas sem o filtro de lado, para refletir a partida inteira
     matches = team_matches(M.apply_filters(df_all, f.comps or None, f.maps or None, None), team)
+    if player_matches is not None:
+        matches = matches[matches["match_id"].isin(player_matches)]
+        st.caption(f"Partidas em que {f.nick} jogou pela equipe. As linhas dele ficam destacadas na sequência de abates.")
     if matches.empty:
         st.info("Nenhuma partida do time com os filtros escolhidos.")
         return
@@ -128,7 +143,7 @@ def render(df_all: pd.DataFrame, df_f: pd.DataFrame, f: Filters, events: pd.Data
     if sil.empty or events.empty or m.map_name not in views:
         st.info("Faltam os dados de posição. Gere-os com `python src/ingestion/build_features.py --processed data/processed`.")
     else:
-        _round_detail(r, ev, sil[sil["map_name"] == m.map_name], views[m.map_name], team)
+        _round_detail(r, ev, sil[sil["map_name"] == m.map_name], views[m.map_name], team, names, f.puuid)
 
     with st.expander("Números da partida comparados com a referência"):
         st.caption(f"Referência: os outros times em {m.map_name}, com os filtros de competição e lado da barra lateral. "

@@ -9,7 +9,10 @@ caso contrario o sistema diz que nao ha diferenca confiavel ou que faltam dados.
 import numpy as np
 import pandas as pd
 
-from src.analytics.metrics import BY_KEY
+from src.analytics.metrics import BY_KEY as TEAM_KEYS
+from src.analytics.players import BY_KEY as PLAYER_KEYS
+
+BY_KEY = {**TEAM_KEYS, **PLAYER_KEYS}
 
 # (frase se ponto_forte, frase se ponto_de_atencao)
 TEXTS = {
@@ -36,6 +39,24 @@ TEXTS = {
     "retake_win": ("Retoma bem os sites: vence {rate} dos rounds em que o spike foi plantado (referência {ref}).",
                    "Retake fraco: vence só {rate} dos rounds em que o spike foi plantado (referência {ref})."),
 }
+
+# metricas por jogador (src/analytics/players.py)
+TEXTS.update({
+    "p_open_part": ("Protagonista na abertura: participa do duelo de abertura em {rate} dos rounds (referência {ref}).",
+                    "Joga longe da abertura: participa do duelo de abertura em {rate} dos rounds (referência {ref})."),
+    "p_open_win": ("Vence o duelo de abertura: {rate} dos seus duelos de abertura (referência {ref}).",
+                   "Perde o duelo de abertura: vence só {rate} dos seus duelos de abertura (referência {ref})."),
+    "p_fk_conv": ("Quando abre, a equipe converte: {rate} dos rounds vencidos após o seu primeiro abate (referência {ref}).",
+                  "O primeiro abate dele rende pouco: {rate} dos rounds vencidos depois dele (referência {ref})."),
+    "p_survival": ("Sobrevive bastante: não é abatido em {rate} dos rounds (referência {ref}).",
+                   "Morre muito: sobrevive só em {rate} dos rounds (referência {ref})."),
+    "p_trade_rate": ("Morre perto da equipe: {rate} das mortes são vingadas em até 5 s (referência {ref}).",
+                     "Morre sem troca: só {rate} das mortes são vingadas em até 5 s (referência {ref})."),
+    "p_isolated": ("Joga junto: só {rate} das mortes acontecem longe dos aliados (referência {ref}).",
+                   "Morre isolado: {rate} das mortes acontecem longe dos aliados (referência {ref})."),
+    "p_trade_kills": ("Faz a troca pela equipe: {rate} dos abates vingam um aliado (referência {ref}).",
+                      "Raramente é quem faz a troca: {rate} dos abates vingam um aliado (referência {ref})."),
+})
 
 # Combinacoes que contam uma historia unica. a = 1a metrica do par, b = 2a.
 # O texto traz os numeros reais (taxa e referencia de cada uma) para nao repetir o titulo.
@@ -72,6 +93,13 @@ NOTES = {
     "plant_rate": ("Plantou o spike", "Não plantou"),
     "post_plant_win": ("Plantou e venceu", "Plantou e perdeu"),
     "retake_win": ("Retake bem-sucedido", "Retake falhou"),
+    "p_open_part": ("Participou do duelo de abertura", "Fora do duelo de abertura"),
+    "p_open_win": ("Venceu o duelo de abertura", "Perdeu o duelo de abertura"),
+    "p_fk_conv": ("Fez o 1º abate e o time venceu", "Fez o 1º abate e o time perdeu"),
+    "p_survival": ("Sobreviveu", "Foi abatido"),
+    "p_trade_rate": ("mortes trocadas", ""),
+    "p_isolated": ("mortes isoladas", ""),
+    "p_trade_kills": ("abates de troca", ""),
 }
 
 
@@ -90,11 +118,12 @@ def _numbers(rows):
 
 def diagnose(res: pd.DataFrame) -> dict:
     """res = saida de src.analytics.metrics.team_metrics. Retorna insights ordenados + notas de transparencia."""
-    reliable = res[res["quality"].isin(["ponto_forte", "ponto_de_atencao"])].set_index("key", drop=False)
+    reliable = res[res["quality"].isin(["ponto_forte", "ponto_de_atencao", "perfil_acima", "perfil_abaixo"])
+                   ].set_index("key", drop=False)
     used, insights = set(), []
 
     for (a, b), table in COMBOS.items():
-        if a in reliable.index and b in reliable.index:
+        if a in reliable.index and b in reliable.index and not (reliable.loc[a].neutral or reliable.loc[b].neutral):
             ra, rb = reliable.loc[a], reliable.loc[b]
             hit = table.get((ra.quality, rb.quality))
             if hit:
@@ -109,9 +138,11 @@ def diagnose(res: pd.DataFrame) -> dict:
     for key, r in reliable.iterrows():
         if key in used:
             continue
-        good, bad = TEXTS[key]
-        insights.append(dict(title=r.label, text=_fmt(r, good if r.quality == "ponto_forte" else bad),
-                             quality=r.quality, keys=[key], strength=float(r.gap), numbers=_numbers([r])))
+        good, bad = TEXTS[key]  # em metricas de perfil: (texto se acima, texto se abaixo)
+        first = r.quality in ("ponto_forte", "perfil_acima")
+        insights.append(dict(title=r.label, text=_fmt(r, good if first else bad),
+                             quality="perfil" if r.neutral else r.quality, keys=[key], strength=float(r.gap),
+                             numbers=_numbers([r])))
     insights.sort(key=lambda i: -i["strength"])
 
     notes = {
@@ -122,12 +153,12 @@ def diagnose(res: pd.DataFrame) -> dict:
     return dict(insights=insights, notes=notes)
 
 
-def evidence(df: pd.DataFrame, team: str, key: str, quality: str = None) -> pd.DataFrame:
+def evidence(df: pd.DataFrame, team: str, key: str, quality: str = None, key_col: str = "team") -> pd.DataFrame:
     """Rounds do time que entram na metrica `key`.
     quality='ponto_de_atencao' -> so os rounds "ruins"; 'ponto_forte' -> so os "bons"; None -> todos.
     `df` deve ter os mesmos filtros usados no calculo das metricas."""
     m = BY_KEY[key]
-    d = df[df["team"] == team]
+    d = df[df[key_col] == team]
     x, n = m.x(d), m.n(d)
     keep = n > 0
     out = d.loc[keep, ["match_date", "competition", "map_name", "opponent", "round_label", "role",
@@ -137,7 +168,7 @@ def evidence(df: pd.DataFrame, team: str, key: str, quality: str = None) -> pd.D
     out["bom_para_o_time"] = good
     out["resultado"] = np.where(out["won"], "Venceu", "Perdeu")
     pos, neg = NOTES[key]
-    if m.unit == "mortes":
+    if m.unit in ("mortes", "abates"):
         out["detalhe"] = out["x"].astype(str) + " de " + out["n"].astype(str) + " " + pos
     else:
         out["detalhe"] = np.where(out["x"] == out["n"], pos, neg)

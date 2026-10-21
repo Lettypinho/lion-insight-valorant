@@ -48,6 +48,7 @@ class Metric:
     higher_better: bool = True
     unit: str = "rounds"              # "rounds" ou "mortes" (para exibir o n)
     group: str = ""
+    neutral: bool = False             # depende da funcao/estilo: diferenca vira "perfil", nao ponto forte/atencao
 
 
 def _b(s):  # bool -> int
@@ -143,11 +144,12 @@ def _ratio_se(pm: pd.DataFrame):
 
 
 def team_metrics(df: pd.DataFrame, team: str, min_n=MIN_N, min_matches=MIN_MATCHES,
-                 min_delta_pp=MIN_DELTA_PP) -> pd.DataFrame:
-    """`df` ja deve vir filtrado (competicao/mapa/lado). Referencia = todos os outros times de `df`."""
-    mine, ref = df[df["team"] == team], df[df["team"] != team]
+                 min_delta_pp=MIN_DELTA_PP, metrics: Sequence[Metric] = None, key_col: str = "team") -> pd.DataFrame:
+    """`df` ja deve vir filtrado (competicao/mapa/lado). Referencia = todos os outros times de `df`.
+    `metrics`/`key_col` permitem a mesma analise para outra unidade (ex.: jogador, em players.py)."""
+    mine, ref = df[df[key_col] == team], df[df[key_col] != team]
     rows = []
-    for m in METRICS:
+    for m in (METRICS if metrics is None else metrics):
         pm = _per_match(mine, m)
         x, n = int(pm["x"].sum()), int(pm["n"].sum())
         rate, se, k = _ratio_se(pm)
@@ -159,7 +161,7 @@ def team_metrics(df: pd.DataFrame, team: str, min_n=MIN_N, min_matches=MIN_MATCH
         hi = min(1.0, rate + crit * se) if n and not np.isnan(se) else np.nan
 
         # posicao entre os times com amostra suficiente (percentil)
-        per_team = ref.assign(_x=m.x(ref), _n=m.n(ref)).groupby("team")[["_x", "_n"]].sum()
+        per_team = ref.assign(_x=m.x(ref), _n=m.n(ref)).groupby(key_col)[["_x", "_n"]].sum()
         per_team = per_team[per_team["_n"] >= min_n]
         rates = (per_team["_x"] / per_team["_n"]).to_numpy()
         pct = float((rates < rate).mean() * 100) if n and len(rates) else np.nan
@@ -178,7 +180,9 @@ def team_metrics(df: pd.DataFrame, team: str, min_n=MIN_N, min_matches=MIN_MATCH
                 verdict = "acima" if diff > 0 else "abaixo"
             else:
                 verdict, gap = "em_linha", 0.0
-        if verdict in ("acima", "abaixo"):
+        if verdict in ("acima", "abaixo") and m.neutral:
+            quality = f"perfil_{verdict}"
+        elif verdict in ("acima", "abaixo"):
             good = (verdict == "acima") == m.higher_better
             quality = "ponto_forte" if good else "ponto_de_atencao"
         else:
@@ -187,7 +191,7 @@ def team_metrics(df: pd.DataFrame, team: str, min_n=MIN_N, min_matches=MIN_MATCH
                          x=x, n=n, n_matches=k, rate=rate, ref_rate=ref_rate, ref_n=rn,
                          delta_pp=diff * 100 if n else np.nan, ci_low=lo, ci_high=hi,
                          percentile=pct, n_teams_ref=len(rates), verdict=verdict, quality=quality,
-                         gap=gap, higher_better=m.higher_better))
+                         gap=gap, higher_better=m.higher_better, neutral=m.neutral))
     return pd.DataFrame(rows)
 
 

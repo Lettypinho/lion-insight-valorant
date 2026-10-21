@@ -2,6 +2,7 @@
 """
 Gera, a partir das tabelas de data/processed:
   * `team_round.csv`     UMA linha por (partida, round, time) - base das metricas;
+  * `player_round.csv`   UMA linha por (partida, round, jogador) - metricas e insights por jogador;
   * `kill_events.csv`    um abate sobre inimigo por linha, com posicoes - mapa tatico e detalhe de round;
   * `map_silhouette.csv` amostra das posicoes de todos os jogadores por mapa - desenha o mapa sem imagem externa.
 
@@ -34,7 +35,7 @@ def side_rows(fr: pd.DataFrame, role: str) -> pd.DataFrame:
         "won": fr["winning_side"] == fr[f"{me}_side"],
         "team_loadout": fr[f"{me}_loadout_total"], "opp_loadout": fr[f"{opp}_loadout_total"],
         "bomb_planted": fr["bomb_planted"].astype(bool), "plant_site": fr["plant_site"],
-        "plant_time_ms": fr["plant_time_ms"], "plant_x": fr["plant_x"], "plant_y": fr["plant_y"],
+        "plant_time_ms": fr["plant_time_ms"], "plant_x": fr["plant_x"], "plant_y": fr["plant_y"], "planter_puuid": fr["planter_puuid"],
         "result_code": fr["result_code"],
     })
 
@@ -89,9 +90,60 @@ def build_kill_events(processed: Path) -> pd.DataFrame:
     fk = pd.read_csv(processed / "fact_kill.csv", low_memory=False)
     ek = fk[fk["death_type"] == "enemy_kill"].copy()
     ek["isolated"] = ek["victim_nearest_ally_dist"].notna() & (ek["victim_nearest_ally_dist"] > ISOLATED_DIST)
-    cols = ["kill_id", "match_id", "round_num", "seq_in_round", "time_in_round_ms", "killer_team", "victim_team",
+    cols = ["kill_id", "match_id", "round_num", "seq_in_round", "time_in_round_ms", "killer_puuid", "victim_puuid",
+            "killer_team", "victim_team",
             "victim_x", "victim_y", "killer_x", "killer_y", "is_first_kill", "death_was_traded", "is_trade_kill", "isolated"]
     return ek[cols].merge(dm, on="match_id", how="left")
+
+
+def build_player_round(processed: Path, tr: pd.DataFrame) -> pd.DataFrame:
+    """UMA linha por (partida, round, jogador). Mesmas regras de team_round, vistas pelo jogador:
+    so abates sobre inimigo contam; first kill/death sao do jogador; contexto do round vem de team_round."""
+    rp = pd.read_csv(processed / "fact_round_player.csv",
+                     usecols=["match_id", "round_num", "puuid", "team_name", "damage_dealt"])
+    fk = pd.read_csv(processed / "fact_kill.csv", low_memory=False)
+    ek = fk[fk["death_type"] == "enemy_kill"].copy()
+    has_dist = ek["victim_nearest_ally_dist"].notna()
+    ek["isolated"] = has_dist & (ek["victim_nearest_ally_dist"] > ISOLATED_DIST)
+    ek["has_dist"] = has_dist
+    deaths = (ek.groupby(["match_id", "round_num", "victim_puuid"])
+                .agg(deaths_enemy=("kill_id", "size"), deaths_traded=("death_was_traded", "sum"),
+                     isolated_deaths=("isolated", "sum"), deaths_with_dist=("has_dist", "sum"),
+                     first_death=("is_first_kill", "any"))
+                .reset_index().rename(columns={"victim_puuid": "puuid"}))
+    kills = (ek.groupby(["match_id", "round_num", "killer_puuid"])
+               .agg(kills_enemy=("kill_id", "size"), trade_kills=("is_trade_kill", "sum"),
+                    first_kill=("is_first_kill", "any"))
+               .reset_index().rename(columns={"killer_puuid": "puuid"}))
+    pr = (rp.rename(columns={"team_name": "team"})
+            .merge(deaths, on=["match_id", "round_num", "puuid"], how="left")
+            .merge(kills, on=["match_id", "round_num", "puuid"], how="left"))
+    for c in ["deaths_enemy", "deaths_traded", "isolated_deaths", "deaths_with_dist", "kills_enemy", "trade_kills"]:
+        pr[c] = pr[c].fillna(0).astype(int)
+    for c in ["first_kill", "first_death"]:
+        pr[c] = pr[c].fillna(False).astype(bool)
+    ctx = tr[["match_id", "round_num", "team", "opponent", "role", "half", "won", "is_pistol", "has_fk",
+              "competition", "competition_group", "map_name", "match_date", "game_no", "series_game", "round_label"]]
+    pr = pr.merge(ctx, on=["match_id", "round_num", "team"], how="left")
+    return pr.sort_values(["match_date", "match_id", "round_num", "team", "puuid"]).reset_index(drop=True)
+
+
+def check_player_round(pr: pd.DataFrame, tr: pd.DataFrame) -> bool:
+    ok = True
+
+    def chk(name, cond, detail=""):
+        nonlocal ok
+        ok &= bool(cond)
+        print(("OK   " if cond else "FALHA"), name, detail)
+
+    g = pr.groupby(["match_id", "round_num", "team"])
+    t = tr.set_index(["match_id", "round_num", "team"])
+    chk("player_round: 5 jogadores por time e round", (g.size() == 5).all())
+    chk("player_round: contexto de round preenchido", pr["won"].notna().all() and pr["role"].notna().all())
+    chk("player_round: abates somam team_round", (g["kills_enemy"].sum().reindex(t.index) == t["kills_enemy"]).all())
+    chk("player_round: mortes trocadas somam team_round", (g["deaths_traded"].sum().reindex(t.index) == t["deaths_traded"]).all())
+    chk("player_round: first kill do time = algum jogador", (g["first_kill"].any().reindex(t.index) == t["first_kill"]).all())
+    return ok
 
 
 def build_silhouette(processed: Path) -> pd.DataFrame:
@@ -142,6 +194,10 @@ def main():
     ok = check(tr, p)
     tr.to_csv(p / "team_round.csv", index=False)
     print(f"\nteam_round.csv: {len(tr):,d} linhas ->", p / "team_round.csv")
+    pr = build_player_round(p, tr)
+    ok &= check_player_round(pr, tr)
+    pr.to_csv(p / "player_round.csv", index=False)
+    print(f"player_round.csv: {len(pr):,d} linhas ->", p / "player_round.csv")
     ke = build_kill_events(p)
     ke.to_csv(p / "kill_events.csv", index=False)
     print(f"kill_events.csv: {len(ke):,d} linhas ->", p / "kill_events.csv")

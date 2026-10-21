@@ -93,6 +93,12 @@ Incluídos a pedido do time, por não exigirem calibração nem imagem externa:
 
 Heatmaps de densidade e calibração com imagens oficiais continuam fora do MVP.
 
+### Decisão de escopo — análise por jogador (21/10/2026)
+
+Incluída a pedido do time: filtro por jogador da equipe, aba Jogadores (elenco, destaques e insights por jogador)
+e nicks na sequência de abates. Métricas definidas em `metricas.md`, seção 16. Os nicks vêm dos JSONs (`gameName`);
+o repositório é privado e os dados não são versionados. Confirmar com a organização antes de publicar nicks.
+
 ## 6. Fora do MVP
 
 - autenticação;

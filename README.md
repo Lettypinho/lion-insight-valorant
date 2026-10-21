@@ -62,12 +62,13 @@ python src/ingestion/build_features.py --processed data/processed
 
 python tests/test_metrics.py
 python tests/test_objectives_matches.py
+python tests/test_players.py
 python tests/smoke_report.py --team ufmt_turuna
 
 python -m streamlit run app.py
 ```
 
-O app abre em http://localhost:8501 e lê `team_round.csv`, `kill_events.csv` e `map_silhouette.csv` de `data/processed/` (os três gerados por `build_features.py`). Para abrir direto em uma equipe: `http://localhost:8501/?team=azure_bears_golden`.
+O app abre em http://localhost:8501 e lê `team_round.csv`, `player_round.csv`, `kill_events.csv` e `map_silhouette.csv` (gerados por `build_features.py`) e `dim_player.csv` (gerado por `ingest.py`) de `data/processed/`. Para abrir direto em uma equipe: `http://localhost:8501/?team=azure_bears_golden`.
 
 Observações sobre o tema do Streamlit:
 

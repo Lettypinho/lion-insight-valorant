@@ -127,6 +127,10 @@ Os jogadores possuem informações que permitem relacionar:
 
 Alguns valores podem estar representados por IDs e precisar de mapeamento local para exibição amigável.
 
+Confirmado na base (21/10/2026): 411 jogadores (`puuid`); 24 jogaram por mais de uma equipe e 55 usaram mais de um nick
+ao longo das partidas. A interface exibe o nick mais recente (`dim_player.latest_game_name`). A soma dos abates, mortes e
+primeiros abates dos jogadores de uma equipe bate com os totais da equipe (`tests/test_players.py`).
+
 ## 7. Rounds
 
 Os rounds contêm informações fundamentais para o produto, incluindo:

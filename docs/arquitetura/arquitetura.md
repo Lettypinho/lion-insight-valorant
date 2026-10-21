@@ -58,9 +58,10 @@ src/
 ├── ingestion/
 │   ├── ingest.py          # JSONs → tabelas CSV (data/processed)
 │   ├── validate.py        # confere as tabelas contra os JSONs
-│   └── build_features.py  # gera team_round.csv, kill_events.csv e map_silhouette.csv
+│   └── build_features.py  # gera team_round, player_round, kill_events e map_silhouette (CSV)
 ├── analytics/
 │   ├── metrics.py         # métricas, referência da competição, intervalos e análise por mapa
+│   ├── players.py         # métricas, elenco e insights por jogador
 │   ├── objectives.py      # plants por site
 │   └── matches.py         # partidas do time e referência de uma partida
 ├── insights/
@@ -74,6 +75,7 @@ src/
     ├── charts.py          # gráficos Plotly: comparação, mapa tático, sites e linha do tempo
     └── tabs/
         ├── diagnostico.py # aba Diagnóstico
+        ├── jogadores.py   # aba Jogadores
         ├── mapa_tatico.py # aba Mapa tático
         ├── partidas.py    # aba Partidas e rounds
         ├── comparacao.py  # aba Comparação com a competição
@@ -83,6 +85,7 @@ src/
 tests/
 ├── test_metrics.py        # confere as métricas por caminho independente
 ├── test_objectives_matches.py # casos pequenos: sites, placar, referência de partida, por mapa
+├── test_players.py        # casos pequenos por jogador e soma do elenco = equipe
 ├── smoke_report.py        # relatório de uma equipe no terminal
 └── calibration.py         # taxa de falso alerta com equipes sorteadas
 

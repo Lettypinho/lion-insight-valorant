@@ -63,7 +63,14 @@ Mapa desenhado com as coordenadas da base (sem imagem). Seletor de mapa e de cam
 mortes do time (trocada, isolada sem troca, sem troca), abates do time, primeiro duelo, plants no ataque e plants sofridos na defesa.
 Selecionar pontos lista os rounds correspondentes. Abaixo, plants por site comparados com a referência do mesmo mapa.
 
-### 6.2 Partidas e rounds
+### 6.2 Jogadores
+
+Filtro "Jogador" na barra lateral, logo abaixo da equipe. A aba Jogadores mostra o elenco (números descritivos e pontos
+confirmados de cada jogador) e, com um jogador escolhido, os insights dele em três grupos: o que está funcionando, o que
+precisa de atenção e perfil (métricas que dependem da função). O mapa tático passa a mostrar só o jogador, e a aba de
+partidas lista as partidas dele e destaca as linhas dele na sequência de abates.
+
+### 6.3 Partidas e rounds
 
 Profundidade depois do panorama: escolher uma partida, ver a linha do tempo (round vencido ou perdido, lado) e abrir um round
 clicando nele. O round mostra resultado, lado, economia, spike, sequência de abates e as posições das mortes.

@@ -42,7 +42,7 @@
 - [ ] Heatmaps.
 - [ ] Análise espacial de trades.
 - [ ] Métricas de spacing.
-- [ ] Análise por jogador.
+- [x] Análise por jogador (antecipada em 21/10/2026; ver `mvp.md`).
 - [ ] Histórico de equipes.
 - [ ] Recomendações táticas avançadas.
 - [ ] Exportação de relatório.

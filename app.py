@@ -17,14 +17,15 @@ from src.analytics import metrics as M  # noqa: E402
 from src.ui import components, data, styles  # noqa: E402
 from src.ui.formatting import team_name  # noqa: E402
 from src.ui.sidebar import render_sidebar  # noqa: E402
-from src.ui.tabs import comparacao, diagnostico, mapa_tatico, metodologia, partidas, rounds  # noqa: E402
+from src.ui.tabs import comparacao, diagnostico, jogadores, mapa_tatico, metodologia, partidas, rounds  # noqa: E402
 
 st.set_page_config(page_title="Raio-X de time", layout="wide", initial_sidebar_state="auto")
 data.ensure_data()
 styles.apply_styles()
 
 df_all = data.load_data()
-f = render_sidebar(df_all, M.list_teams(df_all))
+players, names = data.load_players(), data.load_names()
+f = render_sidebar(df_all, M.list_teams(df_all), players, names)
 
 df_f = M.apply_filters(df_all, f.comps or None, f.maps or None, f.role)
 mine = df_f[df_f["team"] == f.team]
@@ -39,14 +40,19 @@ by_map = data.compute_by_map(f.team, tuple(f.comps), tuple(f.maps), f.role)
 
 components.header(df_all, mine, f)
 
-tab_diag, tab_map, tab_match, tab_comp, tab_rounds, tab_met = st.tabs(
-    ["Diagnóstico", "Mapa tático", "Partidas e rounds", "Comparação com a competição", "Rounds de evidência", "Metodologia"])
+tab_diag, tab_players, tab_map, tab_match, tab_comp, tab_rounds, tab_met = st.tabs(
+    ["Diagnóstico", "Jogadores", "Mapa tático", "Partidas e rounds", "Comparação com a competição", "Rounds de evidência",
+     "Metodologia"])
 with tab_diag:
     diagnostico.render(dg, R, res, df_f, f.team, by_map)
+with tab_players:
+    jogadores.render(players, f, names, data.compute_players(f.team, tuple(f.comps), tuple(f.maps), f.role))
 with tab_map:
-    mapa_tatico.render(df_f, f.team, data.load_events(), data.load_silhouette(), data.load_map_views())
+    mapa_tatico.render(df_f, f.team, data.load_events(), data.load_silhouette(), data.load_map_views(), f.puuid, f.nick)
 with tab_match:
-    partidas.render(df_all, df_f, f, data.load_events(), data.load_silhouette(), data.load_map_views())
+    player_matches = set(players.loc[players["player"] == f.player, "match_id"]) if f.player else None
+    partidas.render(df_all, df_f, f, data.load_events(), data.load_silhouette(), data.load_map_views(), names,
+                    player_matches)
 with tab_comp:
     comparacao.render(res)
 with tab_rounds:

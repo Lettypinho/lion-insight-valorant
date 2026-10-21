@@ -8,7 +8,7 @@ from src.ui.formatting import ROLE_PT, num, pct, team_name
 from src.ui.sidebar import Filters
 
 QUAL = {"ponto_forte": ("Ponto forte", "✓", "#0ca30c"), "ponto_de_atencao": ("Ponto de atenção", "!", "#d03b3b"),
-        "misto": ("Contraste", "⇄", "#2a78d6")}
+        "misto": ("Contraste", "⇄", "#2a78d6"), "perfil": ("Perfil", "◆", "#6250d6")}
 
 
 def header(df_all: pd.DataFrame, mine: pd.DataFrame, f: Filters):
@@ -33,7 +33,9 @@ def header(df_all: pd.DataFrame, mine: pd.DataFrame, f: Filters):
 
 
 READING = {"ponto_forte": "Ponto forte (confirmado)", "ponto_de_atencao": "Ponto de atenção (confirmado)",
-           "em_linha": "Sem diferença confiável", "insuficiente": "Amostra pequena: não confirmado"}
+           "em_linha": "Sem diferença confiável", "insuficiente": "Amostra pequena: não confirmado",
+           "perfil_acima": "Perfil: acima da referência (confirmado)",
+           "perfil_abaixo": "Perfil: abaixo da referência (confirmado)"}
 
 
 def metrics_table(res: pd.DataFrame) -> pd.DataFrame:
@@ -47,7 +49,9 @@ def metrics_table(res: pd.DataFrame) -> pd.DataFrame:
         "Time": t["rate"] * 100,
         "Referência": t["ref_rate"] * 100,
         "Diferença": [f"{num(v, 1, True)} pp" for v in t["delta_pp"]],
-        "Frente à referência": ["▲ melhor" if g > 0 else "▼ pior" if g < 0 else "= igual" for g in t["_good"]],
+        "Frente à referência": [("▲ acima" if d > 0 else "▼ abaixo" if d < 0 else "= igual") if neu else
+                                ("▲ melhor" if g > 0 else "▼ pior" if g < 0 else "= igual")
+                                for g, d, neu in zip(t["_good"], t["delta_pp"], t["neutral"])],
         "Amostra": [f"{int(x)} de {int(n)} {u}" for x, n, u in zip(t["x"], t["n"], t["unit"])],
         "Partidas": t["n_matches"].astype(int),
         "Leitura": t["quality"].map(READING),
@@ -64,8 +68,8 @@ def show_metrics_table(res: pd.DataFrame):
         "Time": pct_bar("Time"), "Referência": pct_bar("Referência", "Outros times, nas mesmas condições")})
 
 
-def evidence_table(df_f: pd.DataFrame, team: str, key: str, quality):
-    ev = D.evidence(df_f, team, key, quality)
+def evidence_table(df_f: pd.DataFrame, team: str, key: str, quality, key_col: str = "team"):
+    ev = D.evidence(df_f, team, key, quality, key_col)
     out = pd.DataFrame({
         "Data": pd.to_datetime(ev["match_date"]).dt.strftime("%d/%m/%Y"), "Competição": ev["competition"],
         "Mapa": ev["map_name"], "Adversário": ev["opponent"].map(team_name), "Round": ev["round_label"],
@@ -73,8 +77,8 @@ def evidence_table(df_f: pd.DataFrame, team: str, key: str, quality):
     return ev, out
 
 
-def insight_card(i: dict, R: pd.DataFrame, df_f: pd.DataFrame, team: str):
-    """R = resultado de team_metrics indexado por `key`."""
+def insight_card(i: dict, R: pd.DataFrame, df_f: pd.DataFrame, team: str, key_col: str = "team"):
+    """R = resultado de team_metrics indexado por `key`. key_col="player" para insights de jogador."""
     label, icon, color = QUAL[i["quality"]]
     with st.container(border=True):
         st.markdown(f'<span class="chip" style="--c:{color}"><i>{icon}</i>{label}</span>'
@@ -85,7 +89,7 @@ def insight_card(i: dict, R: pd.DataFrame, df_f: pd.DataFrame, team: str):
             col.metric(
                 nb["label"], pct(r.rate, 1),
                 delta=f"{num(r.delta_pp, 1, True)} pp vs referência ({pct(r.ref_rate, 1)})",
-                delta_color="normal" if r.higher_better else "inverse",
+                delta_color="off" if r.neutral else "normal" if r.higher_better else "inverse",
                 help=f"{int(r.x)} de {int(r.n)} {r.unit} em {int(r.n_matches)} partidas. "
                      f"Intervalo de 95%: {pct(r.ci_low, 1)} a {pct(r.ci_high, 1)}.",
                 label_visibility="visible" if len(i["numbers"]) > 1 else "collapsed")
@@ -94,7 +98,8 @@ def insight_card(i: dict, R: pd.DataFrame, df_f: pd.DataFrame, team: str):
             for tb, nb in zip(tabs, i["numbers"]):
                 with tb:
                     q = R.loc[nb["key"]].quality
-                    ev, out = evidence_table(df_f, team, nb["key"], q)
-                    what = "em que isso deu errado" if q == "ponto_de_atencao" else "em que isso deu certo"
+                    ev, out = evidence_table(df_f, team, nb["key"], q, key_col)
+                    what = ("que compõem a métrica" if q.startswith("perfil") else
+                            "em que isso deu errado" if q == "ponto_de_atencao" else "em que isso deu certo")
                     st.caption(f"{len(out)} rounds {what}. Métrica: {R.loc[nb['key']].what}.")
                     st.dataframe(out, hide_index=True, width="stretch", height=min(360, 38 + 35 * len(out)))

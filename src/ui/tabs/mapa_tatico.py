@@ -24,8 +24,9 @@ def _secs(ms) -> list:
     return [f"{int(v) // 1000}s" if pd.notna(v) else "—" for v in ms]
 
 
-def _layers(layer: str, ev: pd.DataFrame, tr: pd.DataFrame, team: str):
-    """Retorna (camadas para o gráfico, DataFrame de cada camada com uma coluna 'detalhe')."""
+def _layers(layer: str, ev: pd.DataFrame, tr: pd.DataFrame, team: str, puuid=None):
+    """Retorna (camadas para o gráfico, DataFrame de cada camada com uma coluna 'detalhe').
+    puuid: restringe ao jogador (mortes dele, abates dele, duelos de abertura dele, plants feitos por ele)."""
     C = colors()
     out = []
 
@@ -36,7 +37,7 @@ def _layers(layer: str, ev: pd.DataFrame, tr: pd.DataFrame, team: str):
                          hover=_hover(df, df["detalhe"])), df))
 
     if layer == "Mortes do time":
-        d = ev[ev["victim_team"] == team]
+        d = ev[ev["victim_puuid"] == puuid] if puuid else ev[ev["victim_team"] == team]
         traded, isolated = d["death_was_traded"], ~d["death_was_traded"] & d["isolated"]
         for name, m, color in [("Trocada", traded, C["s1"]), ("Isolada, sem troca", isolated, C["s2"]),
                                ("Sem troca", ~traded & ~isolated, C["s3"])]:
@@ -44,13 +45,15 @@ def _layers(layer: str, ev: pd.DataFrame, tr: pd.DataFrame, team: str):
             add(name, sub, "victim_x", "victim_y", color,
                 [f"Morte {name.lower()} aos {s}" for s in _secs(sub["time_in_round_ms"])])
     elif layer == "Abates do time":
-        a = ev[ev["killer_team"] == team]
+        a = ev[ev["killer_puuid"] == puuid] if puuid else ev[ev["killer_team"] == team]
         for name, m, color in [("Abate de troca", a["is_trade_kill"], C["s1"]), ("Outros abates", ~a["is_trade_kill"], C["s2"])]:
             sub = a[m]
             add(name, sub, "killer_x", "killer_y", color,
                 [f"{name} aos {s} (posição de quem abateu)" for s in _secs(sub["time_in_round_ms"])])
     elif layer == "Primeiro duelo":
         f = ev[ev["is_first_kill"]]
+        if puuid:
+            f = f[(f["killer_puuid"] == puuid) | (f["victim_puuid"] == puuid)]
         for name, m, color in [("Primeiro abate do time", f["killer_team"] == team, C["s1"]),
                                ("Primeira morte do time", f["victim_team"] == team, C["s2"])]:
             sub = f[m]
@@ -59,6 +62,8 @@ def _layers(layer: str, ev: pd.DataFrame, tr: pd.DataFrame, team: str):
     else:
         role = "Attacker" if layer == "Plants (ataque)" else "Defender"
         p = tr[(tr["role"] == role) & tr["bomb_planted"].astype(bool)]
+        if puuid and role == "Attacker":
+            p = p[p["planter_puuid"] == puuid]
         for site, color in zip(sorted(p["plant_site"].dropna().unique()), [C["s1"], C["s2"], C["s3"]]):
             for won, symbol, res in [(True, "circle", "vencido"), (False, "x", "perdido")]:
                 sub = p[(p["plant_site"] == site) & (p["won"] == won)]
@@ -104,7 +109,7 @@ def _sites(df_map: pd.DataFrame, team: str, mp: str):
     st.caption(f"Referência: os outros times em {mp}, com os mesmos filtros. Mesma regra da métrica pós-plant, aberta por site.")
 
 
-def render(df_f: pd.DataFrame, team: str, events: pd.DataFrame, sil: pd.DataFrame, views: dict):
+def render(df_f: pd.DataFrame, team: str, events: pd.DataFrame, sil: pd.DataFrame, views: dict, puuid=None, nick=None):
     if events.empty or sil.empty or not views:
         st.info("Faltam os dados de posição. Gere-os com `python src/ingestion/build_features.py --processed data/processed`.")
         return
@@ -117,7 +122,10 @@ def render(df_f: pd.DataFrame, team: str, events: pd.DataFrame, sil: pd.DataFram
 
     tr = mine[mine["map_name"] == mp]
     ev = events[events["map_name"] == mp].merge(tr[ROUND_COLS], on=["match_id", "round_num"])
-    built = _layers(layer, ev, tr, team)
+    built = _layers(layer, ev, tr, team, puuid)
+    if puuid:
+        team_layer = " Em plants sofridos na defesa, a camada é da equipe." if layer == "Plants sofridos (defesa)" else ""
+        st.info(f"Mostrando apenas **{nick}**.{team_layer} Escolha “Toda a equipe” na barra lateral para ver o time inteiro.")
     n_matches = tr["match_id"].nunique()
     st.caption(f"{n_matches} partida(s) e {len(tr)} rounds do time em {mp}, com os filtros da barra lateral. "
                "O mapa é desenhado pelas posições de todos os jogadores registradas na base. "
