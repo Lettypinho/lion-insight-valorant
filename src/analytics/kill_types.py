@@ -1,7 +1,8 @@
 """
 Tipo de abate (como alguem matou / morreu), a partir de kill_events.csv (coluna kill_kind, ver build_features.py).
 
-Unico dado legivel sobre o que causou o abate: armas aparecem so como UUID na base, sem nome.
+Habilidades que a base registra como arma (Headhunter, Tour de Force, Overdrive) ja vem reclassificadas.
+Nomes das armas: coluna weapon (data/reference/armas.csv).
 Referencia = todos os outros (times ou jogadores) do mesmo recorte.
 """
 import numpy as np
@@ -14,8 +15,13 @@ ITEM_PT = {"Ability1": "habilidade 1", "Ability2": "habilidade 2", "GrenadeAbili
            "Ultimate": "ultimate"}
 
 
-def describe(kind: str, item) -> str:
-    """Texto curto do tipo de abate para a sequência de abates."""
+def describe(kind: str, item, weapon=None) -> str:
+    """Texto curto do tipo de abate para a sequência de abates (com o nome da arma, quando houver)."""
+    has_name = isinstance(weapon, str)
+    if kind == "arma" and has_name:
+        return weapon
+    if kind in ("habilidade", "ultimate") and has_name:   # Headhunter, Tour de Force, Overdrive: o nome vem primeiro
+        return f"{weapon} ({kind})"
     if kind in ("habilidade", "ultimate") and isinstance(item, str):
         return ITEM_PT.get(item, KIND_PT[kind]).capitalize()
     return KIND_PT.get(kind, kind)

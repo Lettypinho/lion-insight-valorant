@@ -85,7 +85,7 @@ def _kill_feed(kills: pd.DataFrame, names: dict, puuid, team: str, key: str):
         "#": kills["seq_in_round"].to_numpy(), "Tempo": [_clock(t) for t in kills["time_in_round_ms"]],
         "Quem abateu": [_who(names, p, t) for p, t in zip(kills["killer_puuid"], kills["killer_team"])],
         "Quem morreu": [_who(names, p, t) for p, t in zip(kills["victim_puuid"], kills["victim_team"])],
-        "Como": [K.describe(k, i) for k, i in zip(kills["kill_kind"], kills["damage_item"])],
+        "Como": [K.describe(k, i, w) for k, i, w in zip(kills["kill_kind"], kills["damage_item"], kills["weapon"])],
         "Morte": [f"Trocada em {_secs(t)} (#{int(s)})" if c == "trocada" and pd.notna(s) else DEATH_PT[c]
                   for c, s, t in zip(kills["death_class"], kills["trade_seq"], kills["trade_after_ms"])],
         "Contexto": notes})
@@ -118,10 +118,10 @@ def _round_overview(r, kills: pd.DataFrame, sil: pd.DataFrame, view: dict, team:
         layers.append(dict(name=name, x=k["victim_x"], y=k["victim_y"], color=color, symbol="x", size=13,
                            labels=k["seq_in_round"].astype(str),
                            hover=[f"#{s} · {_clock(t)} · {_who(names, v, vt)} abatido por {names.get(kp, '?')} "
-                                  f"({K.describe(kk, ki).lower()})"
-                                  for s, t, v, vt, kp, kk, ki in zip(k["seq_in_round"], k["time_in_round_ms"], k["victim_puuid"],
-                                                                     k["victim_team"], k["killer_puuid"], k["kill_kind"],
-                                                                     k["damage_item"])]))
+                                  f"({K.describe(kk, ki, kw)})"
+                                  for s, t, v, vt, kp, kk, ki, kw in zip(k["seq_in_round"], k["time_in_round_ms"], k["victim_puuid"],
+                                                                         k["victim_team"], k["killer_puuid"], k["kill_kind"],
+                                                                         k["damage_item"], k["weapon"])]))
     if r.bomb_planted and pd.notna(r.plant_x):
         layers.append(dict(name=f"Spike (site {r.plant_site})", x=[r.plant_x], y=[r.plant_y], color=C["s3"],
                            symbol="diamond", size=14, hover=[f"Plant no site {r.plant_site} aos {_clock(r.plant_time_ms)}"]))
@@ -143,10 +143,15 @@ ACTION = {"kill": "abateu", "plant": "plantou", "defuse": "desarmou"}
 
 
 def _snapshot(kind: str, actor, pos: pd.DataFrame, team_of: dict, sil: pd.DataFrame, view: dict, team: str,
-              names: dict, puuid, chart_key: str, zoom_key, victim=None, spike=None, close_up=False):
+              names: dict, puuid, chart_key: str, zoom_key, victim=None, spike=None, close_up=False, weapon_of=None):
     """Foto de um instante do round: todos os vivos com nick e mira, quem agiu (abateu/plantou/desarmou),
-    a vítima (num abate) e o spike (se já estava plantado). victim/spike: dicts com x, y (+ puuid / site)."""
+    a vítima (num abate) e o spike (se já estava plantado). victim/spike: dicts com x, y (+ puuid / site).
+    weapon_of: puuid -> arma principal do round (aparece no hover)."""
     C = colors()
+
+    def arm(p):
+        w = (weapon_of or {}).get(p)
+        return f" · arma do round: {w}" if isinstance(w, str) else ""
 
     def color(p):
         return C["ally"] if team_of.get(p) == team else C["enemy"]
@@ -182,15 +187,15 @@ def _snapshot(kind: str, actor, pos: pd.DataFrame, team_of: dict, sil: pd.DataFr
         sub = others[others["mine"] == mine]
         layers.append(dict(name=f"{name} ({len(sub)})", x=sub["x"], y=sub["y"], color=C["ally"] if mine else C["enemy"],
                            size=11, labels=sub["puuid"].map(names).fillna("?"),
-                           hover=[f"{names.get(p, '?')} ({side(p)}) · vivo" for p in sub["puuid"]]))
+                           hover=[f"{names.get(p, '?')} ({side(p)}) · vivo{arm(p)}" for p in sub["puuid"]]))
     if len(who) and not on_spike:
         layers.append(dict(name=f"Quem {ACTION[kind]}", x=who["x"], y=who["y"], color=color(actor), size=17,
                            line_width=3, line_color=C["text"], labels=[names.get(actor, "?")],
-                           hover=[f"{names.get(actor, '?')} ({side(actor)}) · {ACTION[kind]}"]))
+                           hover=[f"{names.get(actor, '?')} ({side(actor)}) · {ACTION[kind]}{arm(actor)}"]))
     if victim:
         layers.append(dict(name="Quem morreu", x=[victim["x"]], y=[victim["y"]], color=color(victim["puuid"]), symbol="x",
                            size=19, labels=[names.get(victim["puuid"], "?")],
-                           hover=[f"{names.get(victim['puuid'], '?')} ({side(victim['puuid'])}) · morreu"]))
+                           hover=[f"{names.get(victim['puuid'], '?')} ({side(victim['puuid'])}) · morreu{arm(victim['puuid'])}"]))
     if puuid:
         sel = alive[alive["puuid"] == puuid]
         pts = list(zip(sel["x"], sel["y"])) or ([(victim["x"], victim["y"])] if victim and victim["puuid"] == puuid else [])
@@ -217,7 +222,7 @@ def _snapshot(kind: str, actor, pos: pd.DataFrame, team_of: dict, sil: pd.DataFr
 
 
 def _round_detail(r, ev: pd.DataFrame, sil: pd.DataFrame, view: dict, team: str, names: dict, puuid,
-                  pos_match: pd.DataFrame, obj_match: pd.DataFrame, team_of: dict):
+                  pos_match: pd.DataFrame, obj_match: pd.DataFrame, team_of: dict, weapon_of: dict = None):
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Resultado", "Venceu" if r.won else "Perdeu", _result(r.result_code), delta_color="off")
     c2.metric("Lado", ROLE_PT[r.role])
@@ -276,11 +281,11 @@ def _round_detail(r, ev: pd.DataFrame, sil: pd.DataFrame, view: dict, team: str,
         k = next(kills[kills["seq_in_round"] == m["seq"]].itertuples())
         extra = [_death_text(k)] + (["plantador punido"] if k.planter_punished else []) + (["spike já plantado"] if spike else [])
         st.markdown(f"#{m['seq']} aos {_clock(k.time_in_round_ms)}: **{_who(names, k.killer_puuid, k.killer_team)}** abateu "
-                    f"**{_who(names, k.victim_puuid, k.victim_team)}** com **{K.describe(k.kill_kind, k.damage_item).lower()}**"
+                    f"**{_who(names, k.victim_puuid, k.victim_team)}** com **{K.describe(k.kill_kind, k.damage_item, k.weapon)}**"
                     + "".join(f" · {e}" for e in extra if e))
         victim = dict(x=k.victim_x, y=k.victim_y, puuid=k.victim_puuid) if pd.notna(k.victim_x) else None
         _snapshot("kill", k.killer_puuid, pos_match[pos_match["kill_id"] == k.kill_id], team_of, sil, view, team, names,
-                  puuid, f"snap_{base}", zoom_key, victim=victim, spike=spike, close_up=close_up)
+                  puuid, f"snap_{base}", zoom_key, victim=victim, spike=spike, close_up=close_up, weapon_of=weapon_of)
     else:
         actor = r.planter_puuid if m["kind"] == "plant" else r.defuser_puuid
         verb = "plantou o spike no site " + str(r.plant_site) if m["kind"] == "plant" else "desarmou o spike"
@@ -288,7 +293,7 @@ def _round_detail(r, ev: pd.DataFrame, sil: pd.DataFrame, view: dict, team: str,
         pos = obj_match[(obj_match["round_num"] == r.round_num) & (obj_match["event"] == m["kind"])]
         _snapshot(m["kind"], actor, pos, team_of, sil, view, team, names, puuid, f"snap_{base}", zoom_key,
                   spike=spike if spike else (dict(x=r.plant_x, y=r.plant_y, site=r.plant_site) if pd.notna(r.plant_x) else None),
-                  close_up=close_up)
+                  close_up=close_up, weapon_of=weapon_of)
 
 
 def render(df_all: pd.DataFrame, df_f: pd.DataFrame, f: Filters, events: pd.DataFrame, sil: pd.DataFrame, views: dict,
@@ -344,9 +349,11 @@ def render(df_all: pd.DataFrame, df_f: pd.DataFrame, f: Filters, events: pd.Data
     else:
         pm = players[players["match_id"] == mid]
         team_of = dict(zip(pm["puuid"], pm["team"]))
+        pr = pm[pm["round_num"] == r.round_num]
+        weapon_of = dict(zip(pr["puuid"], pr["weapon"])) if "weapon" in pr.columns else {}
         _round_detail(r, ev, sil[sil["map_name"] == m.map_name], views[m.map_name], team, names, f.puuid,
                       positions[positions["match_id"] == mid],
-                      objectives[objectives["match_id"] == mid] if not objectives.empty else objectives, team_of)
+                      objectives[objectives["match_id"] == mid] if not objectives.empty else objectives, team_of, weapon_of)
 
     with st.expander("Números da partida comparados com a referência"):
         st.caption(f"Referência: os outros times em {m.map_name}, com os filtros de competição e lado da barra lateral. "

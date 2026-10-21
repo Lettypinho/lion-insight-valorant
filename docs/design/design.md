@@ -70,7 +70,13 @@ confirmados de cada jogador) e, com um jogador escolhido, os insights dele em tr
 precisa de atenção e perfil (métricas que dependem da função). O mapa tático passa a mostrar só o jogador, e a aba de
 partidas lista as partidas dele e destaca as linhas dele na sequência de abates.
 
-Abaixo do elenco, **Como mata e como morre**: abates e mortes por tipo (arma, habilidade, ultimate, faca, outro), em
+Abaixo do elenco, **Armas** (do time ou do jogador escolhido), com duas visões: com qual arma mata e morre, e o
+rendimento com a arma principal do round (abates por round, sobrevivência, vitória do round) contra os outros com a
+mesma arma. Headhunter, Tour de Force e Overdrive aparecem pelo nome. Na sequência de abates, a coluna "Como" mostra o
+nome da arma (ou da habilidade, como "Headhunter (habilidade)"); no momento do round, o hover de cada
+jogador mostra a arma do round.
+
+Também abaixo do elenco, **Como mata e como morre**: abates e mortes por tipo (arma, habilidade, ultimate, faca, outro), em
 quantidade e %, ao lado da referência. Mostra o time ou, com um jogador escolhido, o jogador. Na sequência de abates do
 round, a coluna **Como** informa o tipo de cada abate (ex.: "Ultimate", "Habilidade de granada").
 

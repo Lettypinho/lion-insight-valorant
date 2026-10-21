@@ -63,6 +63,7 @@ src/
 │   ├── metrics.py         # métricas, referência da competição, intervalos e análise por mapa
 │   ├── players.py         # métricas, elenco e insights por jogador
 │   ├── kill_types.py      # tipo de abate (arma, habilidade, ultimate...)
+│   ├── weapons.py         # armas: abates/mortes por arma e rendimento com a arma do round
 │   ├── objectives.py      # plants por site
 │   └── matches.py         # partidas do time e referência de uma partida
 ├── insights/
@@ -93,7 +94,8 @@ tests/
 
 data/
 ├── input/                 # JSONs fornecidos pelo Hackathon
-└── processed/             # CSVs gerados pela ingestão
+├── processed/             # CSVs gerados pela ingestão
+└── reference/armas.csv    # nomes das armas (catálogo estático, usado por build_features.py)
 
 app.py                     # ponto de entrada: só orquestra a página
 ```

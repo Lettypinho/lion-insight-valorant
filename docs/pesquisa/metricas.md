@@ -139,20 +139,57 @@ Quando a equipe planta, o plantador fica exposto? Quando o adversário planta, a
 | `damageType` | `damageItem` | Tipo |
 |---|---|---|
 | `Weapon` | UUID da arma | arma |
+| `Weapon` | UUID de arma de habilidade (Headhunter) | habilidade |
+| `Weapon` | UUID de arma de ultimate (Tour de Force, Overdrive) | ultimate |
 | `Ability` | `Ultimate` | ultimate |
 | `Ability` | `Ability1`, `Ability2`, `GrenadeAbility` | habilidade |
 | `Melee` | UUID da faca | faca |
 | `Fall`, `Crush` | vazio | outro |
 
-Base (21/10/2026): 45.121 arma, 812 ultimate, 414 habilidade, 15 faca, 9 outro. As armas só têm UUID, sem nome.
+Algumas habilidades disparam como arma e a base as registra como `Weapon`: Headhunter (habilidade) e Tour de Force
+(ultimate) do Chamber, Overdrive (ultimate) da Neon. Elas são reclassificadas pela tabela `data/reference/armas.csv`
+(ver `dataset.md`).
+
+Base (21/10/2026): 44.391 arma, 1.061 ultimate, 895 habilidade, 15 faca, 9 outro. A reclassificação moveu 730 abates
+(481 para habilidade, 249 para ultimate); "abates com habilidade" na base passou de 2,6% para 4,2%.
 
 ### Fórmulas (equipe e jogador)
 - **Abates com habilidade**: `abates com habilidade ou ultimate / abates sobre inimigo`. **Perfil**.
 - **Mortes por habilidade**: `mortes por habilidade ou ultimate do adversário / mortes por inimigo`. **Perfil**.
 
-São perfil porque dependem dos agentes escolhidos (e dos agentes do adversário). Na base, nenhuma equipe teve diferença
-confirmada; 17 jogadores tiveram perfil confirmado. A distribuição completa por tipo (arma, habilidade, ultimate, faca,
+São perfil porque dependem dos agentes escolhidos (e dos agentes do adversário). Na base, 5 equipes e 56 jogadores
+têm perfil confirmado (antes da reclassificação: nenhuma equipe e 17 jogadores). A distribuição completa por tipo (arma, habilidade, ultimate, faca,
 outro) é exibida de forma descritiva, ao lado da referência (todos os outros do recorte).
+
+## 9.3 Armas
+
+### Fontes
+- **Item do abate**: `finishingDamage.damageItem`, com o nome vindo de `data/reference/armas.csv`. "Item identificado" = armas,
+  faca e as habilidades que funcionam como arma (Headhunter, Tour de Force, Overdrive), que aparecem **pelo nome** e
+  não só como "habilidade". As demais habilidades (`Ability1`, `Ability2`, `GrenadeAbility`, `Ultimate`) não têm nome na base.
+- **Arma principal do round**: `economy.weapon` de cada jogador no round (`fact_round_player.weapon_id`). Em 91% dos
+  abates com arma, a arma do abate é a arma principal do round daquele jogador (o resto são armas pegadas do chão ou a pistola).
+
+### Indicadores (descritivos, por arma; equipe ou jogador)
+| Indicador | Fórmula |
+|---|---|
+| % dos abates | abates com o item / abates com item identificado |
+| % das mortes | mortes por inimigo com o item / mortes por item identificado |
+| Abates por round | abates sobre inimigo nos rounds com a arma principal / rounds com a arma principal |
+| Sobrevivência | rounds com a arma principal sem ser abatido / rounds com a arma principal |
+| Vitória do round | rounds vencidos com a arma principal / rounds com a arma principal |
+
+Para a equipe, "rounds" são rounds-jogador (dois jogadores com Vandal no mesmo round contam 2).
+
+### Referência
+Todos os outros (equipes ou jogadores) do mesmo recorte **com a mesma arma**: Operator é comparado com Operator.
+
+### Cuidados
+- Não geram veredicto (ponto forte/atenção): são descritivos, com a amostra exibida e menos de 15 rounds sinalizado
+  como amostra pequena.
+- A vitória do round com uma arma depende muito da economia (fuzil costuma vir com compra cheia; pistola, com eco).
+  O número descreve o que aconteceu e não indica que a arma ganha rounds.
+- 169 abates com arma não trazem o item na base e ficam fora da tabela por arma (continuam contando como arma).
 
 ## 10. Ataque e defesa
 

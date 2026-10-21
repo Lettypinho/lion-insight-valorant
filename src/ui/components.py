@@ -79,8 +79,8 @@ def show_kind_table(bd: pd.DataFrame, who: str):
         "% dos abates": pct_bar("% dos abates"), "Referência (abates)": pct_bar("Referência (abates)"),
         "% das mortes": pct_bar("% das mortes"), "Referência (mortes)": pct_bar("Referência (mortes)")})
     st.caption(f"{bd.attrs.get('n_kills', 0)} abates e {bd.attrs.get('n_deaths', 0)} mortes sobre inimigos no recorte. "
-               "Referência: todos os outros, nas mesmas condições. A base só identifica a arma por um código, sem nome; "
-               "habilidade e ultimate vêm do tipo de dano do abate.")
+               "Referência: todos os outros, nas mesmas condições. Habilidade e ultimate vêm do tipo de dano do abate; "
+               "Headhunter e Tour de Force (Chamber) e Overdrive (Neon) contam como habilidade/ultimate.")
 
 
 def evidence_table(df_f: pd.DataFrame, team: str, key: str, quality, key_col: str = "team"):

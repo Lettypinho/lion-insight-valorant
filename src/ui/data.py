@@ -7,6 +7,7 @@ import streamlit as st
 
 from src.analytics import metrics as M
 from src.analytics import players as P
+from src.analytics import weapons as W
 from src.insights import engine as D
 from src.ui.map_view import build_views
 
@@ -92,6 +93,12 @@ def load_objective_positions() -> pd.DataFrame:
 def load_players() -> pd.DataFrame:
     """Uma linha por jogador e round (player_round.csv). Vazio se o arquivo ainda nao foi gerado."""
     return P.load(DATA.parent) if (DATA.parent / "player_round.csv").exists() else pd.DataFrame()
+
+
+@st.cache_data(show_spinner=False)
+def load_weapon_ref() -> pd.DataFrame:
+    """Nome da arma -> categoria e preço (data/reference/armas.csv)."""
+    return W.load_reference(DATA.parent.parent)
 
 
 @st.cache_data(show_spinner=False)

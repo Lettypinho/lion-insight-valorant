@@ -6,7 +6,8 @@ Gera, a partir das tabelas de data/processed:
   * `kill_events.csv`    um abate sobre inimigo por linha, com posicoes - mapa tatico e detalhe de round;
   * `map_silhouette.csv` amostra das posicoes de todos os jogadores por mapa - desenha o mapa sem imagem externa.
 
-Le apenas as tabelas de data/processed (saida do ingest.py). Nenhum dado externo.
+Le as tabelas de data/processed (saida do ingest.py) e a tabela de nomes de armas data/reference/armas.csv
+(catalogo estatico, uso autorizado pela organizacao; ver docs/pesquisa/dataset.md). Nenhum dado externo de partida.
 As metricas em si (taxas, referencia, diagnosticos) ficam em src/analytics/metrics.py:
 aqui so guardamos os fatos de cada round, de forma que qualquer metrica vire
 uma soma/contagem simples.
@@ -27,11 +28,20 @@ SILHOUETTE_PER_MAP = 20000  # pontos por mapa na silhueta (amostra fixa, seed 0)
 PLANT_COVER_MS = 5000       # plantador abatido ate 5 s depois do plant, sem troca -> plant sem cobertura
 
 
-def kill_kind(damage_type, damage_item) -> str:
-    """Como foi o abate, a partir de finishingDamage (unico campo legivel: as armas so tem UUID).
-    arma | habilidade | ultimate | faca | outro (queda, esmagamento)."""
+def load_weapons(processed: Path) -> pd.DataFrame:
+    """Tabela item_id (UUID maiusculo) -> nome, categoria, preco, tipo. Vazia se o arquivo nao existir."""
+    p = processed.parent / "reference" / "armas.csv"
+    return pd.read_csv(p, dtype={"preco": "Int64"}).set_index("item_id") if p.exists() else pd.DataFrame()
+
+
+def kill_kind(damage_type, damage_item, item_kind: dict = None) -> str:
+    """Como foi o abate, a partir de finishingDamage.
+    arma | habilidade | ultimate | faca | outro (queda, esmagamento).
+    item_kind: UUID -> tipo (data/reference/armas.csv). Corrige habilidades que a base registra como `Weapon`
+    (Headhunter e Tour de Force do Chamber, Overdrive da Neon)."""
     if damage_type == "Weapon":
-        return "arma"
+        tipo = (item_kind or {}).get(str(damage_item).upper())
+        return tipo if tipo in ("habilidade", "ultimate") else "arma"
     if damage_type == "Ability":
         return "ultimate" if damage_item == "Ultimate" else "habilidade"
     if damage_type == "Melee":
@@ -39,8 +49,12 @@ def kill_kind(damage_type, damage_item) -> str:
     return "outro"
 
 
-def add_kill_kind(ek: pd.DataFrame) -> pd.DataFrame:
-    ek["kill_kind"] = [kill_kind(t, i) for t, i in zip(ek["damage_type"], ek["damage_item"])]
+def add_kill_kind(ek: pd.DataFrame, processed: Path) -> pd.DataFrame:
+    """kill_kind, by_ability e weapon (nome do item que matou, quando e arma, faca ou arma de habilidade)."""
+    w = load_weapons(processed)
+    item_kind = w["tipo"].to_dict() if len(w) else {}
+    ek["kill_kind"] = [kill_kind(t, i, item_kind) for t, i in zip(ek["damage_type"], ek["damage_item"])]
+    ek["weapon"] = ek["damage_item"].str.upper().map(w["nome"]) if len(w) else np.nan
     ek["by_ability"] = ek["kill_kind"].isin(["habilidade", "ultimate"])
     return ek
 
@@ -85,7 +99,7 @@ def build(processed: Path) -> pd.DataFrame:
     has_dist = ek["victim_nearest_ally_dist"].notna()
     ek["isolated"] = has_dist & (ek["victim_nearest_ally_dist"] > ISOLATED_DIST)
     ek["has_dist"] = has_dist
-    ek = add_allies_alive(add_kill_kind(ek), processed)
+    ek = add_allies_alive(add_kill_kind(ek, processed), processed)
 
     deaths = (ek.groupby(["match_id", "round_num", "victim_side"])
                 .agg(deaths_enemy=("kill_id", "size"), deaths_traded=("death_was_traded", "sum"),
@@ -138,11 +152,11 @@ def build_kill_events(processed: Path) -> pd.DataFrame:
     fk = pd.read_csv(processed / "fact_kill.csv", low_memory=False)
     ek = fk[fk["death_type"] == "enemy_kill"].copy()
     ek["isolated"] = ek["victim_nearest_ally_dist"].notna() & (ek["victim_nearest_ally_dist"] > ISOLATED_DIST)
-    ek = add_allies_alive(add_kill_kind(ek), processed)
+    ek = add_allies_alive(add_kill_kind(ek, processed), processed)
     cols = ["kill_id", "match_id", "round_num", "seq_in_round", "time_in_round_ms", "killer_puuid", "victim_puuid",
             "killer_team", "victim_team",
             "victim_x", "victim_y", "killer_x", "killer_y", "is_first_kill", "death_was_traded", "is_trade_kill", "isolated",
-            "damage_type", "damage_item", "kill_kind", "victim_allies_alive"]
+            "damage_type", "damage_item", "kill_kind", "weapon", "victim_allies_alive"]
     return ek[cols].merge(dm, on="match_id", how="left")
 
 
@@ -150,13 +164,16 @@ def build_player_round(processed: Path, tr: pd.DataFrame) -> pd.DataFrame:
     """UMA linha por (partida, round, jogador). Mesmas regras de team_round, vistas pelo jogador:
     so abates sobre inimigo contam; first kill/death sao do jogador; contexto do round vem de team_round."""
     rp = pd.read_csv(processed / "fact_round_player.csv",
-                     usecols=["match_id", "round_num", "puuid", "team_name", "damage_dealt"])
+                     usecols=["match_id", "round_num", "puuid", "team_name", "damage_dealt", "weapon_id"])
+    # arma principal do round (fact_round_player.weapon_id): em 91% dos abates com arma, e a arma do abate
+    w = load_weapons(processed)
+    rp["weapon"] = rp["weapon_id"].str.upper().map(w["nome"]) if len(w) else np.nan
     fk = pd.read_csv(processed / "fact_kill.csv", low_memory=False)
     ek = fk[fk["death_type"] == "enemy_kill"].copy()
     has_dist = ek["victim_nearest_ally_dist"].notna()
     ek["isolated"] = has_dist & (ek["victim_nearest_ally_dist"] > ISOLATED_DIST)
     ek["has_dist"] = has_dist
-    ek = add_allies_alive(add_kill_kind(ek), processed)
+    ek = add_allies_alive(add_kill_kind(ek, processed), processed)
     deaths = (ek.groupby(["match_id", "round_num", "victim_puuid"])
                 .agg(deaths_enemy=("kill_id", "size"), deaths_traded=("death_was_traded", "sum"),
                      deaths_tradeable=("tradeable", "sum"),
@@ -200,6 +217,8 @@ def check_player_round(pr: pd.DataFrame, tr: pd.DataFrame) -> bool:
     chk("player_round: mortes trocaveis somam team_round",
         (g["deaths_tradeable"].sum().reindex(t.index) == t["deaths_tradeable"]).all())
     chk("player_round: first kill do time = algum jogador", (g["first_kill"].any().reindex(t.index) == t["first_kill"]).all())
+    chk("player_round: toda arma registrada tem nome", pr.loc[pr["weapon_id"].notna(), "weapon"].notna().all(),
+        f"({pr['weapon_id'].isna().sum()} linhas sem arma registrada na base)")
     return ok
 
 
@@ -259,6 +278,12 @@ def main():
     pr.to_csv(p / "player_round.csv", index=False)
     print(f"player_round.csv: {len(pr):,d} linhas ->", p / "player_round.csv")
     ke = build_kill_events(p)
+    by_item = ke["damage_type"].isin(["Weapon", "Melee"]) & ke["damage_item"].notna()
+    cond = ke.loc[by_item, "weapon"].notna().all()
+    ok &= bool(cond)
+    print("OK   " if cond else "FALHA", "kill_events: todo item de arma/faca tem nome",
+          f"({(ke['damage_type'].isin(['Weapon', 'Melee']) & ke['damage_item'].isna()).sum()} abates sem item na base)")
+    print("tipos de abate:", ke["kill_kind"].value_counts().to_dict())
     ke.to_csv(p / "kill_events.csv", index=False)
     print(f"kill_events.csv: {len(ke):,d} linhas ->", p / "kill_events.csv")
     sil = build_silhouette(p)

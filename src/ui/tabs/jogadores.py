@@ -10,6 +10,7 @@ import streamlit as st
 from src.analytics import metrics as M
 from src.analytics import kill_types as K
 from src.analytics import players as P
+from src.analytics import weapons as W
 from src.ui.charts import comparison_figure
 from src.ui.components import evidence_table, insight_card, pct_bar, show_kind_table, show_metrics_table
 from src.ui.sidebar import Filters
@@ -50,6 +51,52 @@ def _kinds(kills: pd.DataFrame, deaths: pd.DataFrame, f: Filters):
         bd = K.breakdown(kills, deaths, kills["killer_team"] == f.team, deaths["victim_team"] == f.team)
         st.markdown("**Como o time mata e como morre**")
         show_kind_table(bd, "do time")
+
+
+def _weapons(kills: pd.DataFrame, deaths: pd.DataFrame, df_p: pd.DataFrame, f: Filters, ref: pd.DataFrame):
+    """Com qual arma mata e morre, e o rendimento com a arma principal do round: do jogador ou, sem jogador, do time."""
+    if f.puuid:
+        mk = (kills["killer_puuid"] == f.puuid) & (kills["killer_team"] == f.team)
+        md = (deaths["victim_puuid"] == f.puuid) & (deaths["victim_team"] == f.team)
+        mine, who, unit = df_p["player"] == f.player, "do jogador", "rounds"
+        st.markdown(f"**Armas de {f.nick}**")
+    else:
+        mk, md = kills["killer_team"] == f.team, deaths["victim_team"] == f.team
+        mine, who, unit = df_p["team"] == f.team, "do time", "rounds-jogador"
+        st.markdown("**Armas do time**")
+
+    def cat(s):
+        return s.map(ref["categoria"]).fillna("—")
+
+    view = st.segmented_control("Ver", ["Com qual arma mata e morre", "Rendimento com a arma do round"],
+                                default="Com qual arma mata e morre", key="weapon_view", label_visibility="collapsed")
+    if view == "Rendimento com a arma do round":
+        wr = W.weapon_rounds(df_p, mine)
+        st.dataframe(pd.DataFrame({
+            "Arma": wr["weapon"], "Categoria": cat(wr["weapon"]), unit.capitalize(): wr["rounds"],
+            "Abates por round": wr["kpr"].round(2), "Referência (abates por round)": wr["kpr_ref"].round(2),
+            "Sobrevivência": wr["survival"] * 100, "Referência (sobrevivência)": wr["survival_ref"] * 100,
+            "Vitória do round": wr["win"] * 100, "Referência (vitória)": wr["win_ref"] * 100,
+            "Amostra": ["pequena" if n < M.MIN_N else "" for n in wr["rounds"]],
+        }), hide_index=True, width="stretch", column_config={
+            c: pct_bar(c) for c in ["Sobrevivência", "Referência (sobrevivência)", "Vitória do round", "Referência (vitória)"]})
+        st.caption(f"Arma principal de cada round ({unit}). Referência: os outros, no mesmo recorte, **com a mesma arma**. "
+                   f"Menos de {M.MIN_N} {unit} = amostra pequena. A vitória do round depende muito da economia (fuzil "
+                   "costuma vir com compra cheia): o número descreve, não diz que a arma ganha rounds.")
+    else:
+        bd = W.kill_breakdown(kills, deaths, mk, md)
+        st.dataframe(pd.DataFrame({
+            "Arma": bd["weapon"], "Categoria": cat(bd["weapon"]),
+            f"Abates {who}": bd["kills"], "% dos abates": bd["kills_share"] * 100,
+            "Referência (abates)": bd["ref_kills_share"] * 100,
+            f"Mortes {who}": bd["deaths"], "% das mortes": bd["deaths_share"] * 100,
+            "Referência (mortes)": bd["ref_deaths_share"] * 100,
+        }), hide_index=True, width="stretch", column_config={
+            c: pct_bar(c) for c in ["% dos abates", "Referência (abates)", "% das mortes", "Referência (mortes)"]})
+        st.caption(f"{bd.attrs['n_kills']} abates e {bd.attrs['n_deaths']} mortes com item identificado no recorte: armas, faca "
+                   "e as habilidades que funcionam como arma (Headhunter e Tour de Force do Chamber, Overdrive da Neon). "
+                   "As demais habilidades não têm nome na base e aparecem só na tabela de tipo de abate, acima. "
+                   "Referência: todos os outros, nas mesmas condições.")
 
 
 def _player(df_p: pd.DataFrame, f: Filters, res: pd.DataFrame, dg: dict):
@@ -101,8 +148,10 @@ def _player(df_p: pd.DataFrame, f: Filters, res: pd.DataFrame, dg: dict):
             st.dataframe(out, hide_index=True, width="stretch", height=min(360, 38 + 35 * len(out)))
 
 
-def render(players: pd.DataFrame, f: Filters, names: dict, by_player: dict, events: pd.DataFrame, df_f: pd.DataFrame):
-    """events: kill_events; df_f: team_round com os filtros da barra lateral (define o recorte dos abates)."""
+def render(players: pd.DataFrame, f: Filters, names: dict, by_player: dict, events: pd.DataFrame, df_f: pd.DataFrame,
+           weapon_ref: pd.DataFrame):
+    """events: kill_events; df_f: team_round com os filtros da barra lateral (define o recorte dos abates);
+    weapon_ref: categoria e preço de cada arma."""
     if players.empty:
         st.info("Faltam os dados por jogador. Gere-os com `python src/ingestion/build_features.py --processed data/processed`.")
         return
@@ -114,7 +163,10 @@ def render(players: pd.DataFrame, f: Filters, names: dict, by_player: dict, even
     _roster(df_p, f, names, by_player)
     if not events.empty and "kill_kind" in events.columns:
         # abates feitos no recorte (lado de quem abateu) e mortes sofridas (lado de quem morreu)
-        _kinds(K.in_scope(events, df_f, "killer"), K.in_scope(events, df_f, "victim"), f)
+        kills, deaths = K.in_scope(events, df_f, "killer"), K.in_scope(events, df_f, "victim")
+        _kinds(kills, deaths, f)
+        if "weapon" in events.columns and "weapon" in df_p.columns:
+            _weapons(kills, deaths, df_p, f, weapon_ref)
     if f.player and f.player in by_player:
         st.divider()
         _player(df_p, f, *by_player[f.player])

@@ -48,6 +48,7 @@ O foco não é construir uma plataforma completa, mas provar o núcleo da propos
 - `tests/` — testes e relatórios de conferência.
 - `data/input/` — JSONs fornecidos pelo Hackathon.
 - `data/processed/` — tabelas geradas pela ingestão.
+- `data/reference/armas.csv` — nomes das armas (catálogo estático do jogo, uso autorizado pela organização).
 
 ## Como rodar
 

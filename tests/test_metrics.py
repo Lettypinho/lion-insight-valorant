@@ -49,7 +49,8 @@ def main():
         ref["plant_uncovered"] = ((planted_att & r.pun).sum(), planted_att.sum())
         ref["plant_punish"] = ((planted_def & r.pun).sum(), planted_def.sum())
         # tipo de abate: habilidade ou ultimate (direto de fact_kill.damage_type)
-        ab = k.damage_type == "Ability"
+        ab = (k.damage_type == "Ability") | k.damage_item.str.upper().isin(
+            ["856D9A7E-4B06-DC37-15DC-9D809C37CB90", "39099FB5-4293-DEF4-1E09-2E9080CE7456", "95336AE4-45D4-1032-CFAF-6BAD01910607"])
         mine_k, mine_d = k.killer_side == k.my_side, k.victim_side == k.my_side
         ref["ability_kills"] = ((ab & mine_k).sum(), mine_k.sum())
         ref["ability_deaths"] = ((ab & mine_d).sum(), mine_d.sum())
