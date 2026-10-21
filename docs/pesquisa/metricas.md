@@ -61,6 +61,32 @@ Sugestão inicial para teste:
 
 Essa regra deve ser validada antes de ser considerada definitiva.
 
+### Fórmula (decisão de 21/10/2026)
+`mortes trocadas / mortes trocáveis`
+
+**Morte trocável**: a vítima tinha ao menos um aliado vivo logo após o abate (ou a morte foi trocada). A morte de quem era
+o último vivo do time fica fora do denominador: não havia quem trocasse, e contá-la penalizaria quem perde rounds por
+eliminação ou joga clutches. Abates sem posições registradas (2 na base) contam como trocáveis. Vale para o time
+(`trade_rate`) e para o jogador (`p_trade_rate`); colunas `deaths_tradeable` em `team_round` e `player_round`.
+
+Impacto na base: 40.331 mortes trocáveis de 46.371; a taxa geral passa de 21,3% para 24,5%. Nenhum veredicto de equipe
+mudou; 19 de 411 jogadores mudaram de veredicto (10 deixaram de aparecer abaixo da referência).
+
+### Classificação de cada morte (detalhe do round)
+Na aba Partidas e rounds, cada morte recebe uma classificação descritiva. Não é métrica nova: usa só a regra de trade
+acima e a contagem de aliados vivos.
+
+| Classificação | Regra |
+|---|---|
+| Trocada | um aliado da vítima abateu quem a matou em até 5 s (`death_was_traded`) |
+| Não trocada | não foi trocada **e** havia ao menos um aliado vivo logo após o abate |
+| Sem aliado vivo | não foi trocada e a vítima era a última viva do time: não havia quem trocasse |
+
+Complementos exibidos junto: primeiro abate do round, abate de troca, vítima isolada (aliado vivo mais próximo a mais de 3.000 unidades, seção 16) e plantador punido (9.1).
+
+Validação (21/10/2026): das 36.504 mortes não trocadas, 6.042 (16,5%) foram de quem era o último vivo do time. Por isso
+elas saem do denominador de "Mortes trocadas" (fórmula acima).
+
 ## 7. Conversão de vantagem
 
 Quando a equipe alcança uma vantagem numérica, com que frequência vence o round?
@@ -212,7 +238,7 @@ Calculadas sobre `player_round.csv` (uma linha por jogador em cada round) com o 
 | Vitória no duelo de abertura | rounds em que o jogador fez o primeiro abate / rounds em que fez ou sofreu o primeiro abate | maior é melhor |
 | Conversão após o seu primeiro abate | rounds vencidos em que o jogador fez o primeiro abate / rounds em que fez o primeiro abate | maior é melhor |
 | Sobrevivência | rounds em que o jogador não foi abatido por inimigo / rounds jogados | maior é melhor |
-| Mortes trocadas | mortes do jogador vingadas em até 5 s / mortes do jogador | maior é melhor |
+| Mortes trocadas | mortes do jogador vingadas em até 5 s / mortes do jogador com aliado vivo (seção 6) | maior é melhor |
 | Mortes isoladas | mortes com aliado vivo mais próximo a mais de 3.000 unidades / mortes com distância calculável | menor é melhor |
 | Abates de troca | abates do jogador que vingaram um aliado em até 5 s / abates do jogador | **perfil** |
 | Abates com habilidade | abates com habilidade ou ultimate / abates do jogador (ver 9.2) | **perfil** |

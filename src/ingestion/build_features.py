@@ -45,6 +45,21 @@ def add_kill_kind(ek: pd.DataFrame) -> pd.DataFrame:
     return ek
 
 
+def add_allies_alive(ek: pd.DataFrame, processed: Path) -> pd.DataFrame:
+    """victim_allies_alive: aliados da vitima vivos logo apos o abate (fact_kill_position = todos os vivos, menos a
+    vitima); 0 = era o ultimo vivo do time. Sem posicoes registradas -> NaN.
+    tradeable: a morte podia ser trocada (havia aliado vivo, ou foi trocada). Sem posicoes conta como trocavel."""
+    pp = processed / "fact_kill_position.csv"
+    if pp.exists():
+        pos = pd.read_csv(pp, usecols=["kill_id", "side"]).merge(ek[["kill_id", "victim_side"]], on="kill_id")
+        allies = pos[pos["side"] == pos["victim_side"]].groupby("kill_id").size()
+        ek["victim_allies_alive"] = np.where(ek["kill_id"].isin(pos["kill_id"]), ek["kill_id"].map(allies).fillna(0), np.nan)
+    else:
+        ek["victim_allies_alive"] = np.nan
+    ek["tradeable"] = ek["death_was_traded"].astype(bool) | (ek["victim_allies_alive"] != 0)
+    return ek
+
+
 def side_rows(fr: pd.DataFrame, role: str) -> pd.DataFrame:
     me, opp = ("attacker", "defender") if role == "Attacker" else ("defender", "attacker")
     return pd.DataFrame({
@@ -70,10 +85,11 @@ def build(processed: Path) -> pd.DataFrame:
     has_dist = ek["victim_nearest_ally_dist"].notna()
     ek["isolated"] = has_dist & (ek["victim_nearest_ally_dist"] > ISOLATED_DIST)
     ek["has_dist"] = has_dist
-    ek = add_kill_kind(ek)
+    ek = add_allies_alive(add_kill_kind(ek), processed)
 
     deaths = (ek.groupby(["match_id", "round_num", "victim_side"])
                 .agg(deaths_enemy=("kill_id", "size"), deaths_traded=("death_was_traded", "sum"),
+                     deaths_tradeable=("tradeable", "sum"),
                      isolated_deaths=("isolated", "sum"), deaths_with_dist=("has_dist", "sum"),
                      deaths_ability=("by_ability", "sum"))
                 .reset_index().rename(columns={"victim_side": "side"}))
@@ -96,7 +112,7 @@ def build(processed: Path) -> pd.DataFrame:
             .merge(first, on=["match_id", "round_num"], how="left")
             .merge(punished, on=["match_id", "round_num"], how="left"))
     tr["planter_punished"] = tr["planter_punished"].fillna(False).astype(bool)
-    for c in ["deaths_enemy", "deaths_traded", "isolated_deaths", "deaths_with_dist", "kills_enemy", "trade_kills",
+    for c in ["deaths_enemy", "deaths_traded", "deaths_tradeable", "isolated_deaths", "deaths_with_dist", "kills_enemy", "trade_kills",
               "deaths_ability", "kills_ability"]:
         tr[c] = tr[c].fillna(0).astype(int)
 
@@ -122,11 +138,11 @@ def build_kill_events(processed: Path) -> pd.DataFrame:
     fk = pd.read_csv(processed / "fact_kill.csv", low_memory=False)
     ek = fk[fk["death_type"] == "enemy_kill"].copy()
     ek["isolated"] = ek["victim_nearest_ally_dist"].notna() & (ek["victim_nearest_ally_dist"] > ISOLATED_DIST)
-    ek = add_kill_kind(ek)
+    ek = add_allies_alive(add_kill_kind(ek), processed)
     cols = ["kill_id", "match_id", "round_num", "seq_in_round", "time_in_round_ms", "killer_puuid", "victim_puuid",
             "killer_team", "victim_team",
             "victim_x", "victim_y", "killer_x", "killer_y", "is_first_kill", "death_was_traded", "is_trade_kill", "isolated",
-            "damage_type", "damage_item", "kill_kind"]
+            "damage_type", "damage_item", "kill_kind", "victim_allies_alive"]
     return ek[cols].merge(dm, on="match_id", how="left")
 
 
@@ -140,9 +156,10 @@ def build_player_round(processed: Path, tr: pd.DataFrame) -> pd.DataFrame:
     has_dist = ek["victim_nearest_ally_dist"].notna()
     ek["isolated"] = has_dist & (ek["victim_nearest_ally_dist"] > ISOLATED_DIST)
     ek["has_dist"] = has_dist
-    ek = add_kill_kind(ek)
+    ek = add_allies_alive(add_kill_kind(ek), processed)
     deaths = (ek.groupby(["match_id", "round_num", "victim_puuid"])
                 .agg(deaths_enemy=("kill_id", "size"), deaths_traded=("death_was_traded", "sum"),
+                     deaths_tradeable=("tradeable", "sum"),
                      isolated_deaths=("isolated", "sum"), deaths_with_dist=("has_dist", "sum"),
                      first_death=("is_first_kill", "any"), deaths_ability=("by_ability", "sum"))
                 .reset_index().rename(columns={"victim_puuid": "puuid"}))
@@ -153,8 +170,8 @@ def build_player_round(processed: Path, tr: pd.DataFrame) -> pd.DataFrame:
     pr = (rp.rename(columns={"team_name": "team"})
             .merge(deaths, on=["match_id", "round_num", "puuid"], how="left")
             .merge(kills, on=["match_id", "round_num", "puuid"], how="left"))
-    for c in ["deaths_enemy", "deaths_traded", "isolated_deaths", "deaths_with_dist", "kills_enemy", "trade_kills",
-              "deaths_ability", "kills_ability"]:
+    for c in ["deaths_enemy", "deaths_traded", "deaths_tradeable", "isolated_deaths", "deaths_with_dist", "kills_enemy",
+              "trade_kills", "deaths_ability", "kills_ability"]:
         pr[c] = pr[c].fillna(0).astype(int)
     for c in ["first_kill", "first_death"]:
         pr[c] = pr[c].fillna(False).astype(bool)
@@ -180,6 +197,8 @@ def check_player_round(pr: pd.DataFrame, tr: pd.DataFrame) -> bool:
     chk("player_round: abates por habilidade somam team_round",
         (g["kills_ability"].sum().reindex(t.index) == t["kills_ability"]).all())
     chk("player_round: mortes trocadas somam team_round", (g["deaths_traded"].sum().reindex(t.index) == t["deaths_traded"]).all())
+    chk("player_round: mortes trocaveis somam team_round",
+        (g["deaths_tradeable"].sum().reindex(t.index) == t["deaths_tradeable"]).all())
     chk("player_round: first kill do time = algum jogador", (g["first_kill"].any().reindex(t.index) == t["first_kill"]).all())
     return ok
 
@@ -211,7 +230,8 @@ def check(tr: pd.DataFrame, processed: Path):
     chk("first_kill + first_death = rounds com abate", (tr["first_kill"] | tr["first_death"]).sum() == tr["has_fk"].sum())
     chk("abates somam o total de enemy_kill", tr["kills_enemy"].sum() == len(ek), f"({tr['kills_enemy'].sum()} vs {len(ek)})")
     chk("mortes somam o total de enemy_kill", tr["deaths_enemy"].sum() == len(ek))
-    chk("trades <= mortes", (tr["deaths_traded"] <= tr["deaths_enemy"]).all())
+    chk("trades <= mortes trocaveis <= mortes",
+        ((tr["deaths_traded"] <= tr["deaths_tradeable"]) & (tr["deaths_tradeable"] <= tr["deaths_enemy"])).all())
     chk("isoladas <= mortes com distancia", (tr["isolated_deaths"] <= tr["deaths_with_dist"]).all())
     chk("papel Attacker/Defender: 1 de cada por round",
         (g["role"].apply(lambda s: set(s) == {"Attacker", "Defender"})).all())

@@ -9,7 +9,8 @@ import streamlit as st
 
 from src.analytics import kill_types as K
 from src.analytics import metrics as M
-from src.analytics.matches import match_frame, round_moments, spike_planted_at, team_matches
+from src.analytics.matches import (DEATH_PT, classify_deaths, death_summary, match_frame, round_moments,
+                                   spike_planted_at, team_matches)
 from src.ui.charts import MAP_CONFIG, colors, tactical_map, timeline_figure
 from src.ui.components import show_metrics_table
 from src.ui.formatting import ROLE_PT, pct, team_name
@@ -25,8 +26,13 @@ def _result(code) -> str:
 
 
 def _clock(ms) -> str:
-    s = int(ms) // 1000
-    return f"{s // 60}:{s % 60:02d}"
+    """m:ss.d — com décimos, para a janela de 5 s da troca ser conferível na tela."""
+    s, d = int(ms) // 1000, int(ms) % 1000 // 100
+    return f"{s // 60}:{s % 60:02d}.{d}"
+
+
+def _secs(ms) -> str:
+    return f"{ms / 1000:.1f}".replace(".", ",") + " s"
 
 
 def _match_label(m) -> str:
@@ -39,8 +45,10 @@ def _round_hover(rr: pd.DataFrame) -> list:
     for r in rr.itertuples():
         fk = "fez o 1º abate" if r.first_kill else "sofreu o 1º abate" if r.first_death else "sem abates"
         spike = f"plant no site {r.plant_site}" if r.bomb_planted else "sem plant"
+        deaths = (f"{int(r.deaths_enemy)} morte(s) do seu time, {int(r.deaths_traded)} trocada(s) de "
+                  f"{int(r.deaths_tradeable)} com aliado vivo" if r.deaths_enemy else "nenhuma morte do seu time")
         out.append(f"<b>Round {r.round_label}</b> · {ROLE_PT[r.role]} · {'venceu' if r.won else 'perdeu'}<br>"
-                   f"{_result(r.result_code)} · {fk} · {spike}<br>{ECON_PT.get(r.econ_state, r.econ_state)}")
+                   f"{_result(r.result_code)} · {fk} · {spike}<br>{deaths}<br>{ECON_PT.get(r.econ_state, r.econ_state)}")
     return out
 
 
@@ -51,29 +59,52 @@ def _who(names: dict, p, t) -> str:
     return f"{names.get(p, '?')} ({team_name(t)})"
 
 
-def _kill_feed(kills: pd.DataFrame, names: dict, puuid, key: str):
-    """Tabela da sequência de abates; retorna o # do abate clicado (ou None)."""
+def _death_text(k) -> str:
+    """Classificação da morte por extenso (para a legenda do momento)."""
+    if k.death_class == "trocada":
+        return (f"morte trocada {_secs(k.trade_after_ms)} depois, no abate #{int(k.trade_seq)}"
+                if pd.notna(k.trade_seq) else "morte trocada")
+    if k.death_class == "sem_aliado":
+        return "morte não trocada: era o último vivo do time"
+    if k.death_class == "nao_trocada":
+        return f"morte não trocada, com {int(k.victim_allies_alive)} aliado(s) vivo(s)"
+    return ""
+
+
+def _kill_feed(kills: pd.DataFrame, names: dict, puuid, team: str, key: str):
+    """Tabela da sequência de abates; retorna o # do abate clicado (ou None). kills = saída de classify_deaths."""
     notes = []
     for k in kills.itertuples():
         n = []
-        if k.is_first_kill: n.append("primeiro abate")
-        if k.is_trade_kill: n.append("abate de troca")
-        if k.death_was_traded: n.append("morte trocada")
+        if k.is_first_kill: n.append("primeiro abate do round")
+        if k.is_trade_kill: n.append(f"abate de troca (vingou o #{int(k.avenged_seq)})" if pd.notna(k.avenged_seq) else "abate de troca")
         if k.isolated: n.append("vítima isolada")
+        if k.planter_punished: n.append("plantador punido")
         notes.append(", ".join(n) or "—")
     feed = pd.DataFrame({
         "#": kills["seq_in_round"].to_numpy(), "Tempo": [_clock(t) for t in kills["time_in_round_ms"]],
         "Quem abateu": [_who(names, p, t) for p, t in zip(kills["killer_puuid"], kills["killer_team"])],
         "Quem morreu": [_who(names, p, t) for p, t in zip(kills["victim_puuid"], kills["victim_team"])],
         "Como": [K.describe(k, i) for k, i in zip(kills["kill_kind"], kills["damage_item"])],
-        "Observação": notes})
+        "Morte": [f"Trocada em {_secs(t)} (#{int(s)})" if c == "trocada" and pd.notna(s) else DEATH_PT[c]
+                  for c, s, t in zip(kills["death_class"], kills["trade_seq"], kills["trade_after_ms"])],
+        "Contexto": notes})
     mark = ((kills["killer_puuid"] == puuid) | (kills["victim_puuid"] == puuid)).to_numpy() if puuid else None
+    # vermelho = ruim para o seu time: morte do seu time que não foi trocada havendo aliado vivo
+    bad = ((kills["victim_team"] == team) & (kills["death_class"] == "nao_trocada")).to_numpy()
     hl = f"background-color: color-mix(in srgb, {colors()['team']} 22%, transparent)"
-    styled = feed.style.apply(lambda row: [hl if mark is not None and mark[row.name] else "" for _ in row], axis=1)
+    red = f"background-color: color-mix(in srgb, {colors()['enemy']} 22%, transparent)"
+
+    def style(row):
+        base = hl if mark is not None and mark[row.name] else ""
+        return [red if c == "Morte" and bad[row.name] else base for c in row.index]
+
+    styled = feed.style.apply(style, axis=1)
     ev = st.dataframe(styled, hide_index=True, width="stretch", height=min(420, 38 + 35 * len(kills)),
                       on_select="rerun", selection_mode="single-row", key=key)
-    if puuid:
-        st.caption(f"Linhas destacadas: abates e mortes de {names.get(puuid, 'jogador')}.")
+    st.caption("Morte: **trocada** = um aliado abateu quem matou em até 5 s; **não trocada** = havia aliado vivo e "
+               "ninguém vingou (em vermelho quando é do seu time); **sem aliado vivo** = era o último do time, não havia "
+               "quem trocasse." + (f" Linhas destacadas: abates e mortes de {names.get(puuid, 'jogador')}." if puuid else ""))
     rows = ev.selection.get("rows", []) if ev else []
     return int(feed["#"].iloc[rows[0]]) if rows else None
 
@@ -196,7 +227,7 @@ def _round_detail(r, ev: pd.DataFrame, sil: pd.DataFrame, view: dict, team: str,
     c4.metric("Spike", f"Site {r.plant_site}" if r.bomb_planted else "Não plantado",
               f"plantado aos {_clock(r.plant_time_ms)}" if r.bomb_planted and pd.notna(r.plant_time_ms) else None, delta_color="off")
 
-    kills = ev.sort_values("seq_in_round")
+    kills = classify_deaths(ev.sort_values("seq_in_round").reset_index(drop=True), r)
     moments = round_moments(kills, r)
     if not moments:
         st.caption("Nenhum abate, plant ou defuse registrado neste round.")
@@ -204,10 +235,18 @@ def _round_detail(r, ev: pd.DataFrame, sil: pd.DataFrame, view: dict, team: str,
     base = f"{r.match_id}_{r.round_num}"
     clicked = None
     if not kills.empty:
+        s = death_summary(kills, team)
+        c1, c2, c3, c4, c5 = st.columns(5)
+        c1.metric("Mortes do seu time", s["deaths"])
+        c2.metric("Trocadas", s["traded"])
+        c3.metric("Não trocadas", s["untraded"], help="Havia aliado vivo e ninguém abateu quem matou em até 5 s.")
+        c4.metric("Sem aliado vivo", s["last_alive"], help="Era o último vivo do time: não havia quem trocasse.")
+        c5.metric("Abates de troca do seu time", f"{s['trade_kills']} de {s['kills']}",
+                  help="Abates do seu time que vingaram um aliado em até 5 s / abates do seu time no round.")
         left, right = st.columns([1, 1])
         with left:
             st.markdown("**Sequência de abates** — clique em uma linha para ver o momento do abate")
-            clicked = _kill_feed(kills, names, puuid, key=f"feed_{base}")
+            clicked = _kill_feed(kills, names, puuid, team, key=f"feed_{base}")
         with right:
             _round_overview(r, kills, sil, view, team, names)
 
@@ -234,10 +273,11 @@ def _round_detail(r, ev: pd.DataFrame, sil: pd.DataFrame, view: dict, team: str,
              if spike_planted_at(r, m["time_ms"]) and pd.notna(r.plant_x) else None)
 
     if m["kind"] == "kill":
-        k = kills[kills["seq_in_round"] == m["seq"]].iloc[0]
+        k = next(kills[kills["seq_in_round"] == m["seq"]].itertuples())
+        extra = [_death_text(k)] + (["plantador punido"] if k.planter_punished else []) + (["spike já plantado"] if spike else [])
         st.markdown(f"#{m['seq']} aos {_clock(k.time_in_round_ms)}: **{_who(names, k.killer_puuid, k.killer_team)}** abateu "
                     f"**{_who(names, k.victim_puuid, k.victim_team)}** com **{K.describe(k.kill_kind, k.damage_item).lower()}**"
-                    + (" · spike já plantado" if spike else ""))
+                    + "".join(f" · {e}" for e in extra if e))
         victim = dict(x=k.victim_x, y=k.victim_y, puuid=k.victim_puuid) if pd.notna(k.victim_x) else None
         _snapshot("kill", k.killer_puuid, pos_match[pos_match["kill_id"] == k.kill_id], team_of, sil, view, team, names,
                   puuid, f"snap_{base}", zoom_key, victim=victim, spike=spike, close_up=close_up)
@@ -271,12 +311,16 @@ def render(df_all: pd.DataFrame, df_f: pd.DataFrame, f: Filters, events: pd.Data
 
     rr = df_all[(df_all["match_id"] == mid) & (df_all["team"] == team)].sort_values("round_num").copy()
     att, dfn = rr[rr["role"] == "Attacker"], rr[rr["role"] == "Defender"]
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Placar", f"{m.won} x {m.lost}", {"V": "vitória", "D": "derrota", "E": "empate"}[m.result], delta_color="off")
     c2.metric("No ataque", f"{int(att['won'].sum())} de {len(att)}", pct(att["won"].mean()) if len(att) else None, delta_color="off")
     c3.metric("Na defesa", f"{int(dfn['won'].sum())} de {len(dfn)}", pct(dfn["won"].mean()) if len(dfn) else None, delta_color="off")
     c4.metric("Primeiros abates", f"{int(rr['first_kill'].sum())} de {int(rr['has_fk'].sum())}",
               pct(rr["first_kill"].sum() / rr["has_fk"].sum()) if rr["has_fk"].sum() else None, delta_color="off")
+    d, t = int(rr["deaths_tradeable"].sum()), int(rr["deaths_traded"].sum())
+    c5.metric("Mortes trocadas", f"{t} de {d}", pct(t / d) if d else None, delta_color="off",
+              help="Mortes do seu time vingadas por um aliado em até 5 s / mortes do seu time com aliado vivo na partida. "
+                   "A morte do último vivo fica de fora: não havia quem trocasse.")
 
     # linha do tempo: clicar em um round o seleciona
     rr["role_pt"] = rr["role"].map(ROLE_PT)

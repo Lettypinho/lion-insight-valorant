@@ -10,7 +10,7 @@ def render():
 **De onde vêm os números.** Apenas dos arquivos JSON de partidas fornecidos pela organização do Hackathon: nenhuma API, coleta ou
 dado externo. A análise é toda pós-partida.
 
-**Como lemos um round.** Para cada time em cada round registramos quem fez o primeiro abate, quantas mortes foram trocadas em até 5 s,
+**Como lemos um round.** Para cada time em cada round registramos quem fez o primeiro abate, quantas mortes foram trocadas em até 5 s (só contam as mortes com aliado vivo: o último vivo não tinha quem o trocasse),
 quantas mortes aconteceram longe dos aliados (aliado vivo mais próximo a mais de 3000 unidades do jogo), a economia relativa ao
 adversário (vantagem: loadout ≥ 1,25× o do adversário; desvantagem: ≤ 0,80×) e o que aconteceu com o spike — inclusive
 se quem plantou foi abatido em até 5 s sem troca (plant sem cobertura, do lado do ataque; punição ao plant, do lado da defesa).

@@ -22,8 +22,8 @@ TEXTS = {
                 "Desperdiça a vantagem do primeiro abate: vence {rate} desses rounds (referência {ref})."),
     "fd_recovery": ("Resiliente: ainda vence {rate} dos rounds mesmo sofrendo o primeiro abate (referência {ref}).",
                     "Tem dificuldade de se recuperar quando sofre o primeiro abate: vence {rate} desses rounds (referência {ref})."),
-    "trade_rate": ("Troca bem: {rate} das mortes são vingadas em até 5 s (referência {ref}).",
-                   "Perde jogadores sem troca: só {rate} das mortes são vingadas em até 5 s (referência {ref})."),
+    "trade_rate": ("Troca bem: {rate} das mortes com aliado vivo são vingadas em até 5 s (referência {ref}).",
+                   "Perde jogadores sem troca: só {rate} das mortes com aliado vivo são vingadas em até 5 s (referência {ref})."),
     "isolated_rate": ("Joga junto: só {rate} das mortes acontecem longe dos aliados (referência {ref}).",
                       "Morre isolado: {rate} das mortes acontecem longe dos aliados (referência {ref})."),
     "pistol_win": ("Forte nos rounds de pistola: vence {rate} (referência {ref}).",
@@ -58,8 +58,8 @@ TEXTS.update({
                   "O primeiro abate dele rende pouco: {rate} dos rounds vencidos depois dele (referência {ref})."),
     "p_survival": ("Sobrevive bastante: não é abatido em {rate} dos rounds (referência {ref}).",
                    "Morre muito: sobrevive só em {rate} dos rounds (referência {ref})."),
-    "p_trade_rate": ("Morre perto da equipe: {rate} das mortes são vingadas em até 5 s (referência {ref}).",
-                     "Morre sem troca: só {rate} das mortes são vingadas em até 5 s (referência {ref})."),
+    "p_trade_rate": ("Morre perto da equipe: {rate} das mortes com aliado vivo são vingadas em até 5 s (referência {ref}).",
+                     "Morre sem troca: só {rate} das mortes com aliado vivo são vingadas em até 5 s (referência {ref})."),
     "p_isolated": ("Joga junto: só {rate} das mortes acontecem longe dos aliados (referência {ref}).",
                    "Morre isolado: {rate} das mortes acontecem longe dos aliados (referência {ref})."),
     "p_ability_kills": ("Mata bastante com utilitário: {rate} dos abates com habilidade ou ultimate (referência {ref}).",
@@ -85,9 +85,9 @@ COMBOS = {
     },
     ("isolated_rate", "trade_rate"): {
         ("ponto_de_atencao", "ponto_de_atencao"): ("Morre longe e sem troca",
-            "{a_rate} das mortes acontecem longe dos aliados (referência {a_ref}) e só {b_rate} são vingadas em até 5 s (referência {b_ref}): as mortes saem de graça."),
+            "{a_rate} das mortes acontecem longe dos aliados (referência {a_ref}) e só {b_rate} das mortes com aliado vivo são vingadas em até 5 s (referência {b_ref}): as mortes saem de graça."),
         ("ponto_forte", "ponto_forte"): ("Jogo coletivo forte",
-            "Só {a_rate} das mortes acontecem longe dos aliados (referência {a_ref}) e {b_rate} são vingadas em até 5 s (referência {b_ref})."),
+            "Só {a_rate} das mortes acontecem longe dos aliados (referência {a_ref}) e {b_rate} das mortes com aliado vivo são vingadas em até 5 s (referência {b_ref})."),
     },
 }
 

@@ -9,6 +9,7 @@ from src.analytics import metrics as M
 def main():
     P = ROOT / "data" / "processed"
     dm = pd.read_csv(P / "dim_match.csv"); fr = pd.read_csv(P / "fact_round.csv"); fk = pd.read_csv(P / "fact_kill.csv", low_memory=False)
+    pos = pd.read_csv(P / "fact_kill_position.csv", usecols=["kill_id", "side"])
     df = M.load(P)
     bad = 0
     for team in ["ufmt_turuna", "azure_bears_black", "inatel_gray", "usp_stars"]:
@@ -26,7 +27,11 @@ def main():
         ref["fk_conv"] = ((r.fk & r.won).sum(), r.fk.sum())
         ref["fd_recovery"] = ((r.fd & r.won).sum(), r.fd.sum())
         d = k[k.victim_side == k.my_side]
-        ref["trade_rate"] = (d.death_was_traded.sum(), len(d))
+        # morte trocavel: foi trocada ou havia aliado vivo (contado direto em fact_kill_position)
+        al = pos[pos.kill_id.isin(d.kill_id)].merge(d[["kill_id", "victim_side"]], on="kill_id")
+        al = al[al.side == al.victim_side].groupby("kill_id").size()
+        alive = d.kill_id.map(al).fillna(0).where(d.kill_id.isin(pos.kill_id))
+        ref["trade_rate"] = (d.death_was_traded.sum(), (d.death_was_traded | (alive != 0)).sum())
         dd = d[d.victim_nearest_ally_dist.notna()]
         ref["isolated_rate"] = ((dd.victim_nearest_ally_dist > 3000).sum(), len(dd))
         ref["pistol_win"] = ((r.is_pistol_round & r.won).sum(), r.is_pistol_round.sum())

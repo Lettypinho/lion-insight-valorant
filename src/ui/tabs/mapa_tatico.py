@@ -38,9 +38,13 @@ def _layers(layer: str, ev: pd.DataFrame, tr: pd.DataFrame, team: str, puuid=Non
 
     if layer == "Mortes do time":
         d = ev[ev["victim_puuid"] == puuid] if puuid else ev[ev["victim_team"] == team]
-        traded, isolated = d["death_was_traded"], ~d["death_was_traded"] & d["isolated"]
+        traded = d["death_was_traded"]
+        # último vivo do time: não havia quem trocasse (fora de "Mortes trocadas"); cinza = fora da conta
+        last = ~traded & (d["victim_allies_alive"] == 0) if "victim_allies_alive" in d else traded & False
+        isolated = ~traded & ~last & d["isolated"]
         for name, m, color in [("Trocada", traded, C["s1"]), ("Isolada, sem troca", isolated, C["s2"]),
-                               ("Sem troca", ~traded & ~isolated, C["s3"])]:
+                               ("Sem troca", ~traded & ~isolated & ~last, C["s3"]),
+                               ("Sem aliado vivo", last, C["ref"])]:
             sub = d[m]
             add(name, sub, "victim_x", "victim_y", color,
                 [f"Morte {name.lower()} aos {s}" for s in _secs(sub["time_in_round_ms"])])
