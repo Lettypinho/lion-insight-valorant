@@ -9,11 +9,11 @@ Toda metrica e uma razao  x / n  calculada sobre a tabela team_round
   * um intervalo de confianca = tratando cada PARTIDA como uma unidade (rounds da mesma
                                 partida nao sao independentes): estimador de razao com
                                 distribuicao t, que fica mais largo quando ha poucas partidas
-  * um veredito               = so afirma "acima/abaixo" se o intervalo do time
-                                a diferenca para a referencia supera a incerteza (do time E da
-                                referencia), vale pelo menos MIN_DELTA_PP pontos percentuais e
-                                ha amostra suficiente.
-Aviso: sao 11 comparacoes por time a 95%; alguma diferenca pode aparecer por acaso.
+  * um veredito               = so afirma "acima/abaixo" se a diferenca para a referencia supera a
+                                incerteza (do time E da referencia), vale pelo menos MIN_DELTA_PP
+                                pontos percentuais, ha amostra suficiente E a referencia fica fora do
+                                intervalo de Wilson da proporcao x/n (trava para eventos raros).
+Aviso: sao len(METRICS) comparacoes por time a 95%; alguma diferenca pode aparecer por acaso.
 Por isso o app mostra sempre o intervalo e o n, e chama os resultados de "indicios".
 """
 from dataclasses import dataclass
@@ -95,6 +95,15 @@ METRICS = [
            "% de rounds vencidos pela defesa depois que o spike é plantado",
            lambda d: _b((d.role == "Defender") & d.bomb_planted & d.won),
            lambda d: _b((d.role == "Defender") & d.bomb_planted), group="Ataque e defesa"),
+    Metric("plant_uncovered", "Plant sem cobertura (ataque)",
+           "% dos plants em que o plantador é abatido em até 5 s, sem troca",
+           lambda d: _b((d.role == "Attacker") & d.bomb_planted & d.planter_punished),
+           lambda d: _b((d.role == "Attacker") & d.bomb_planted), higher_better=False, unit="plants",
+           group="Ataque e defesa"),
+    Metric("plant_punish", "Punição ao plant (defesa)",
+           "% dos plants adversários em que a defesa abate o plantador em até 5 s, sem troca",
+           lambda d: _b((d.role == "Defender") & d.bomb_planted & d.planter_punished),
+           lambda d: _b((d.role == "Defender") & d.bomb_planted), unit="plants", group="Ataque e defesa"),
 ]
 BY_KEY = {m.key: m for m in METRICS}
 
@@ -143,6 +152,18 @@ def _ratio_se(pm: pd.DataFrame):
     return r, float(np.sqrt(var)), k
 
 
+def _wilson(x, n, z=1.96):
+    """Intervalo de Wilson (95%) da proporcao x/n. Usado como trava: o estimador por partida subestima a incerteza
+    quando o evento e raro (ex.: 0 de 28 plants dariam erro-padrao zero)."""
+    if n == 0:
+        return np.nan, np.nan
+    p = x / n
+    d = 1 + z * z / n
+    c = (p + z * z / (2 * n)) / d
+    h = z * np.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d
+    return c - h, c + h
+
+
 def team_metrics(df: pd.DataFrame, team: str, min_n=MIN_N, min_matches=MIN_MATCHES,
                  min_delta_pp=MIN_DELTA_PP, metrics: Sequence[Metric] = None, key_col: str = "team") -> pd.DataFrame:
     """`df` ja deve vir filtrado (competicao/mapa/lado). Referencia = todos os outros times de `df`.
@@ -176,7 +197,8 @@ def team_metrics(df: pd.DataFrame, team: str, min_n=MIN_N, min_matches=MIN_MATCH
         else:
             margin = crit * float(np.sqrt(se ** 2 + (0.0 if np.isnan(ref_se) else ref_se) ** 2))
             gap = abs(diff) - margin
-            if gap > 0 and abs(diff) * 100 >= min_delta_pp:
+            w_lo, w_hi = _wilson(x, n)
+            if gap > 0 and abs(diff) * 100 >= min_delta_pp and not (w_lo <= ref_rate <= w_hi):
                 verdict = "acima" if diff > 0 else "abaixo"
             else:
                 verdict, gap = "em_linha", 0.0

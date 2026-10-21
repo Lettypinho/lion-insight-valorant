@@ -33,6 +33,16 @@ def main():
         ref["plant_rate"] = (((r.role == "Attacker") & r.bomb_planted).sum(), (r.role == "Attacker").sum())
         ref["post_plant_win"] = (((r.role == "Attacker") & r.bomb_planted & r.won).sum(), ((r.role == "Attacker") & r.bomb_planted).sum())
         ref["retake_win"] = (((r.role == "Defender") & r.bomb_planted & r.won).sum(), ((r.role == "Defender") & r.bomb_planted).sum())
+        # plantador abatido ate 5 s depois do plant, sem troca (direto de fact_kill x fact_round)
+        pk = fk[fk.death_type == "enemy_kill"].merge(r[["match_id", "round_num", "planter_puuid", "plant_time_ms"]],
+                                                   on=["match_id", "round_num"])
+        lag = pk.time_in_round_ms - pk.plant_time_ms
+        hit = pk[(pk.victim_puuid == pk.planter_puuid) & (lag >= 0) & (lag <= 5000) & ~pk.death_was_traded]
+        r = r.merge(hit[["match_id", "round_num"]].drop_duplicates().assign(pun=True), on=["match_id", "round_num"], how="left")
+        r["pun"] = r["pun"].fillna(False).astype(bool)
+        planted_att, planted_def = (r.role == "Attacker") & r.bomb_planted, (r.role == "Defender") & r.bomb_planted
+        ref["plant_uncovered"] = ((planted_att & r.pun).sum(), planted_att.sum())
+        ref["plant_punish"] = ((planted_def & r.pun).sum(), planted_def.sum())
         # economia
         me_l = np.where(r.role == "Attacker", r.attacker_loadout_total, r.defender_loadout_total)
         op_l = np.where(r.role == "Attacker", r.defender_loadout_total, r.attacker_loadout_total)

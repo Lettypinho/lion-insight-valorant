@@ -89,6 +89,24 @@ Mesma fórmula restrita aos plants de um site. Também é exibida a distribuiç�
 ### Observação
 Validar se todos os cenários classificados como retake podem ser inferidos apenas pelo plant e resultado. Caso contrário, usar nomenclatura mais precisa, como "vitória defensiva após plant".
 
+## 9.1 Plant sem cobertura e punição ao plant
+
+### Pergunta
+Quando a equipe planta, o plantador fica exposto? Quando o adversário planta, a defesa pune quem plantou?
+
+### Evento
+**Plantador punido**: quem plantou é abatido por um inimigo em até **5 s** depois do plant (`PLANT_COVER_MS`, mesma janela do trade) e essa morte **não é trocada**.
+
+### Fórmulas
+- **Plant sem cobertura (ataque)**: `plants da equipe com plantador punido / plants da equipe`. Menor é melhor.
+- **Punição ao plant (defesa)**: `plants adversários com plantador punido / plants adversários`. Maior é melhor.
+
+### Validação na base (21/10/2026)
+217 de 4.653 plants (4,7%). O ataque vence 21% desses rounds, contra 73% nos demais plants. A mediana do tempo entre o plant e a morte do plantador (quando ele morre) é de 17 s; a janela de 5 s capta só a punição imediata.
+
+### Não incluído
+"Morte durante o defuse" não é calculável: a base registra apenas o defuse concluído, não as tentativas. Inferir pela proximidade do spike misturaria tentativas de defuse com lutas no site.
+
 ## 10. Ataque e defesa
 
 Calcular separadamente:
@@ -134,6 +152,20 @@ Valor inicial sugerido para discussão:
 - mínimo de 10 oportunidades.
 
 Esse número deve ser validado pelo grupo antes de ser congelado.
+
+### Critério implementado
+
+Uma diferença só é confirmada (ponto forte / ponto de atenção) quando, ao mesmo tempo:
+
+1. há ao menos 15 oportunidades em ao menos 3 partidas;
+2. a diferença para a referência supera a incerteza do time e da referência (intervalo de 95% com cada partida como unidade);
+3. a diferença é de ao menos 3 p.p.;
+4. a taxa da referência fica **fora do intervalo de Wilson (95%)** da proporção `x / n` da equipe.
+
+O item 4 é uma trava para eventos raros: com 0 eventos, o erro-padrão por partida vira zero e confirmaria diferenças
+compatíveis com o acaso (ex.: 0 de 28 plants contra uma referência de 4,7%; o intervalo de Wilson de 0/28 vai até ~12%).
+Adotada em 21/10/2026 para todas as métricas: derrubou 18 dos 19 vereditos das métricas de plant e 7 dos 70 das demais.
+A taxa de falso alerta com equipes sorteadas ao acaso ficou entre 4,1% e 4,5% (`tests/calibration.py`).
 
 ## 15. Diferença em pontos percentuais
 

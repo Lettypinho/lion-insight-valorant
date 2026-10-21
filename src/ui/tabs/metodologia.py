@@ -12,7 +12,8 @@ dado externo. A análise é toda pós-partida.
 
 **Como lemos um round.** Para cada time em cada round registramos quem fez o primeiro abate, quantas mortes foram trocadas em até 5 s,
 quantas mortes aconteceram longe dos aliados (aliado vivo mais próximo a mais de 3000 unidades do jogo), a economia relativa ao
-adversário (vantagem: loadout ≥ 1,25× o do adversário; desvantagem: ≤ 0,80×) e o que aconteceu com o spike.
+adversário (vantagem: loadout ≥ 1,25× o do adversário; desvantagem: ≤ 0,80×) e o que aconteceu com o spike — inclusive
+se quem plantou foi abatido em até 5 s sem troca (plant sem cobertura, do lado do ataque; punição ao plant, do lado da defesa).
 
 **A referência.** É a taxa de todos os *outros* times, nas mesmas condições (competição, mapa e lado). O time nunca é comparado com ele mesmo.
 
@@ -22,12 +23,12 @@ Só dizemos "acima" ou "abaixo" quando a diferença supera a incerteza do time *
 Testamos o método com times sorteados ao acaso, sem diferença real: o falso alerta ficou entre 4% e 7% (esperado: 5%).
 
 **O que ainda pode enganar.**
-- São 11 comparações por time, então cerca de 0,6 alerta por acaso é esperado. Leia como indício.
+- São {len(M.METRICS)} comparações por time, então cerca de {str(round(len(M.METRICS) * 0.05, 1)).replace(".", ",")} alerta por acaso é esperado. Leia como indício.
 - Um time muito forte tende a ficar acima da referência em quase tudo. Os contrastes dentro do próprio time costumam ser mais úteis.
 - A referência mistura adversários de níveis diferentes e não corrige a força do adversário em cada partida.
 - Só temos posições no momento de kills, plant e defuse, não o trajeto completo, e nenhuma informação de habilidades usadas por round.
 """)
-    st.markdown("**As 11 métricas**")
+    st.markdown(f"**As {len(M.METRICS)} métricas**")
     st.dataframe(pd.DataFrame({"Grupo": [m.group for m in M.METRICS], "Métrica": [m.label for m in M.METRICS],
                                "O que mede": [m.what for m in M.METRICS],
                                "Melhor quando": ["maior" if m.higher_better else "menor" for m in M.METRICS]}),

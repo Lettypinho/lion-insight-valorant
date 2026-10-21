@@ -107,4 +107,4 @@ def render(dg: dict, R: pd.DataFrame, res: pd.DataFrame, df_f: pd.DataFrame, tea
                                   format_func=lambda n: f"{n} ({count[n]})") or names[0]
     _map_detail(next(m for m in by_map if m["map_name"] == chosen), df_f, team)
 
-    st.caption("São indícios, não sentenças: com 11 comparações por recorte, algum resultado pode aparecer por acaso.")
+    st.caption(f"São indícios, não sentenças: com {len(M.METRICS)} comparações por recorte, algum resultado pode aparecer por acaso.")

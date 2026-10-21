@@ -24,6 +24,7 @@ ISOLATED_DIST = 3000        # morte "isolada": aliado vivo mais proximo a mais d
 ECON_ADV_RATIO = 1.25       # loadout do time >= 1,25x o do adversario  -> vantagem economica
 ECON_DISADV_RATIO = 0.80    # loadout do time <= 0,80x o do adversario  -> desvantagem economica
 SILHOUETTE_PER_MAP = 20000  # pontos por mapa na silhueta (amostra fixa, seed 0)
+PLANT_COVER_MS = 5000       # plantador abatido ate 5 s depois do plant, sem troca -> plant sem cobertura
 
 
 def side_rows(fr: pd.DataFrame, role: str) -> pd.DataFrame:
@@ -62,10 +63,18 @@ def build(processed: Path) -> pd.DataFrame:
     first = (ek[ek["is_first_kill"]][["match_id", "round_num", "killer_side", "time_in_round_ms"]]
              .rename(columns={"killer_side": "fk_side", "time_in_round_ms": "fk_time_ms"}))
 
+    # plantador abatido por inimigo ate PLANT_COVER_MS depois do plant, sem a morte ser trocada (fato do round)
+    pk = ek.merge(fr[["match_id", "round_num", "planter_puuid", "plant_time_ms"]], on=["match_id", "round_num"])
+    dt = pk["time_in_round_ms"] - pk["plant_time_ms"]
+    pk = pk[(pk["victim_puuid"] == pk["planter_puuid"]) & (dt >= 0) & (dt <= PLANT_COVER_MS) & ~pk["death_was_traded"]]
+    punished = pk[["match_id", "round_num"]].drop_duplicates().assign(planter_punished=True)
+
     tr = pd.concat([side_rows(fr, "Attacker"), side_rows(fr, "Defender")], ignore_index=True)
     tr = (tr.merge(deaths, on=["match_id", "round_num", "side"], how="left")
             .merge(kills, on=["match_id", "round_num", "side"], how="left")
-            .merge(first, on=["match_id", "round_num"], how="left"))
+            .merge(first, on=["match_id", "round_num"], how="left")
+            .merge(punished, on=["match_id", "round_num"], how="left"))
+    tr["planter_punished"] = tr["planter_punished"].fillna(False).astype(bool)
     for c in ["deaths_enemy", "deaths_traded", "isolated_deaths", "deaths_with_dist", "kills_enemy", "trade_kills"]:
         tr[c] = tr[c].fillna(0).astype(int)
 
@@ -178,6 +187,8 @@ def check(tr: pd.DataFrame, processed: Path):
     chk("isoladas <= mortes com distancia", (tr["isolated_deaths"] <= tr["deaths_with_dist"]).all())
     chk("papel Attacker/Defender: 1 de cada por round",
         (g["role"].apply(lambda s: set(s) == {"Attacker", "Defender"})).all())
+    chk("plantador punido so em rounds com plant", (~tr["planter_punished"] | tr["bomb_planted"]).all())
+    chk("plantador punido igual para os dois lados do round", (g["planter_punished"].nunique() == 1).all())
     chk("nenhum time sem nome", tr["team"].notna().all() and tr["opponent"].notna().all())
     chk("pistol = 2 por partida com 24+ rounds ou 1 caso contrario",
         tr[tr["is_pistol"]].groupby("match_id")["round_num"].nunique().between(1, 2).all())

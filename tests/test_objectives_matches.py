@@ -73,6 +73,29 @@ def test_momentos_do_round_em_ordem():
     assert round_moments(kills.iloc[:0], r2) == []
 
 
+def test_trava_de_eventos_raros():
+    lo, hi = M._wilson(0, 28)
+    assert lo == 0 and hi > 0.10          # 0 de 28 e compativel com uma taxa de ~5%: nao pode ser confirmado
+    assert np.isnan(M._wilson(0, 0)[0])
+    df = M.load(ROOT / "data" / "processed")
+    for team in ["ufg_eagles_blue", "azure_bears_golden"]:
+        res = M.team_metrics(df, team)
+        ok = res[res["verdict"].isin(["acima", "abaixo"])]
+        for r in ok.itertuples():
+            w_lo, w_hi = M._wilson(r.x, r.n)
+            assert not (w_lo <= r.ref_rate <= w_hi), (team, r.key)
+    r = M.team_metrics(df, "ufg_eagles_blue").set_index("key").loc["plant_punish"]
+    assert r.x == 0 and r.verdict == "em_linha"   # caso que motivou a trava
+
+
+def test_plant_sem_cobertura_bate_com_a_contagem_direta():
+    df = M.load(ROOT / "data" / "processed")
+    att = df[(df["role"] == "Attacker") & df["bomb_planted"]]
+    dfn = df[(df["role"] == "Defender") & df["bomb_planted"]]
+    assert att["planter_punished"].sum() == dfn["planter_punished"].sum() == 217
+    assert (att["won"][att["planter_punished"]].mean() < 0.3) and (att["won"][~att["planter_punished"]].mean() > 0.7)
+
+
 def test_team_metrics_by_map_usa_mesmo_mapa():
     df = M.load(ROOT / "data" / "processed")
     team = "ufmt_turuna"
