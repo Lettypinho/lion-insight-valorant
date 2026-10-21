@@ -28,6 +28,37 @@ Distribuição preliminar:
 
 Esses números devem ser revalidados automaticamente pelo pipeline de ingestão e tratados como inventário preliminar até a primeira execução oficial.
 
+### 2.1 Inventário validado pelo pipeline (21/10/2026)
+
+Gerado por `src/ingestion/ingest.py` e conferido por `src/ingestion/validate.py` (resultado: todas as verificações OK, 0 arquivos inválidos).
+
+O inventário preliminar corresponde **exatamente** ao subconjunto UNIVAVA Classificatórias 1 a 4 (199 partidas, 3.859 rounds, 27.114 eliminações, 350 jogadores, 61 equipes, 9 mapas). A base completa em `data/input/` é maior:
+
+| Item | Base completa |
+|---|---|
+| Arquivos JSON / partidas | 336 (nenhum `matchId` repetido) |
+| Rounds | 6.618 |
+| Eventos de morte | 46.753 (46.371 abates sobre inimigo, 327 detonações do spike, 46 suicídios, 9 teamkills) |
+| Jogadores únicos (`puuid`) | 411 |
+| Equipes (nome do arquivo) | 68 |
+| Mapas | 10 (Abyss, Ascent, Breeze, Fracture, Haven, Lotus, Pearl, Split, Summit, Sunset) |
+| Partidas com prorrogação | 19 |
+
+Partidas por competição:
+
+| Competição | Partidas |
+|---|---|
+| UNIVAVA Classificatória 1 | 55 |
+| UNIVAVA Classificatória 2 | 39 |
+| UNIVAVA Classificatória 3 | 43 |
+| UNIVAVA Classificatória 4 | 62 |
+| UNIVAVA Fase de Grupos | 69 |
+| Rush Series Esquenta | 29 |
+| Rush Series Esquenta 2 | 26 |
+| Rush Series Inclusivo | 13 |
+
+Decisão pendente: definir se o benchmark do MVP usa a base completa ou apenas as competições UNIVAVA.
+
 ## 3. Estrutura geral observada
 
 Os JSONs possuem estruturas relacionadas a:
@@ -160,7 +191,23 @@ Existem coordenadas em eventos, mas visualizações espaciais confiáveis exigem
 
 Não incluir heatmaps completos no MVP.
 
-## 10. Regra de atualização
+## 10. Regras confirmadas pela ingestão
+
+Validadas por `src/ingestion/validate.py` sobre a base completa:
+
+- **Nome da equipe só existe no nome do arquivo.** Red/Blue é identificado cruzando o placar do arquivo com `teams[].roundsWon` (336/336 consistentes).
+- Padrão de nome: `<COMPETIÇÃO>_<nº><sufixo>_<dd-mm-aa>_<equipe_a>_<placar_a>_x_<placar_b>_<equipe_b>_<mapa>.json`. Códigos: `RUSHE`, `RUSH2`, `RUSH_INCLUSIVO`, `UNIVAVA_G`, `UNIVAVA_C1` a `UNIVAVA_C4`.
+- **Sufixos a/b/c** no número (ex.: `G_012c`) são jogos de uma mesma série, não duplicatas (75 partidas com sufixo).
+- A data do arquivo coincide com `gameStartMillis` no fuso de São Paulo em todas as partidas.
+- **Kill** do placar oficial = abate sobre inimigo (exclui suicídio e teamkill); reproduz `stats.kills` em 100% dos casos. **Death** = qualquer morte exceto detonação do spike; reproduz `stats.deaths` com 2 divergências em 3.360 registros jogador × partida.
+- Lado atacante/defensor por round vem de `winningTeam` + `winningTeamRole` (correto também na prorrogação). O lado é fixo em cada metade e troca no intervalo.
+- `playerLocations` de uma eliminação = jogadores vivos **menos a vítima** em cerca de 99% dos casos; a posição da vítima está em `victimLocation`.
+- Observadores (`isObserver`) aparecem em 22 partidas e ficam fora das tabelas de jogadores. Após removê-los, toda partida tem 10 jogadores, 5 por lado.
+- `mapId` usa nomes internos, com correspondência 1:1 ao mapa do nome do arquivo (ex.: Jam = Lotus, Triad = Haven, Bonsai = Split, Plummet = Summit).
+- Agente, arma e armadura são UUIDs; **os nomes não estão na base**.
+- Há equipes com nomes parecidos (ex.: `inatel`, `inatel_gray`, `inatel_legacy`; `usp_stars`, `usp_stars_gc`) que devem ser tratadas como equipes distintas até confirmação.
+
+## 11. Regra de atualização
 
 Ao implementar a ingestão, produzir automaticamente um relatório de validação contendo:
 

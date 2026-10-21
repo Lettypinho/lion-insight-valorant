@@ -1,0 +1,125 @@
+#!/usr/bin/env python3
+"""
+Gera `team_round.csv`: UMA linha por (partida, round, time).
+
+Le apenas as tabelas de data/processed (saida do ingest.py). Nenhum dado externo.
+As metricas em si (taxas, referencia, diagnosticos) ficam em src/analytics/metrics.py:
+aqui so guardamos os fatos de cada round, de forma que qualquer metrica vire
+uma soma/contagem simples.
+
+Uso:
+    python src/ingestion/build_features.py --processed data/processed
+"""
+import argparse
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+ISOLATED_DIST = 3000        # morte "isolada": aliado vivo mais proximo a mais de 3000 unidades do jogo
+ECON_ADV_RATIO = 1.25       # loadout do time >= 1,25x o do adversario  -> vantagem economica
+ECON_DISADV_RATIO = 0.80    # loadout do time <= 0,80x o do adversario  -> desvantagem economica
+
+
+def side_rows(fr: pd.DataFrame, role: str) -> pd.DataFrame:
+    me, opp = ("attacker", "defender") if role == "Attacker" else ("defender", "attacker")
+    return pd.DataFrame({
+        "match_id": fr["match_id"], "round_num": fr["round_num"], "half": fr["half"],
+        "is_pistol": fr["is_pistol_round"], "role": role,
+        "side": fr[f"{me}_side"], "team": fr[f"{me}_team"], "opponent": fr[f"{opp}_team"],
+        "won": fr["winning_side"] == fr[f"{me}_side"],
+        "team_loadout": fr[f"{me}_loadout_total"], "opp_loadout": fr[f"{opp}_loadout_total"],
+        "bomb_planted": fr["bomb_planted"].astype(bool), "plant_site": fr["plant_site"],
+        "plant_time_ms": fr["plant_time_ms"], "result_code": fr["result_code"],
+    })
+
+
+def build(processed: Path) -> pd.DataFrame:
+    dm = pd.read_csv(processed / "dim_match.csv")
+    fr = pd.read_csv(processed / "fact_round.csv")
+    fk = pd.read_csv(processed / "fact_kill.csv", low_memory=False)
+
+    # so abates sobre inimigo entram nas metricas de first kill / trade / isolamento
+    ek = fk[fk["death_type"] == "enemy_kill"].copy()
+    has_dist = ek["victim_nearest_ally_dist"].notna()
+    ek["isolated"] = has_dist & (ek["victim_nearest_ally_dist"] > ISOLATED_DIST)
+    ek["has_dist"] = has_dist
+
+    deaths = (ek.groupby(["match_id", "round_num", "victim_side"])
+                .agg(deaths_enemy=("kill_id", "size"), deaths_traded=("death_was_traded", "sum"),
+                     isolated_deaths=("isolated", "sum"), deaths_with_dist=("has_dist", "sum"))
+                .reset_index().rename(columns={"victim_side": "side"}))
+    kills = (ek.groupby(["match_id", "round_num", "killer_side"])
+               .agg(kills_enemy=("kill_id", "size"), trade_kills=("is_trade_kill", "sum"))
+               .reset_index().rename(columns={"killer_side": "side"}))
+    first = (ek[ek["is_first_kill"]][["match_id", "round_num", "killer_side", "time_in_round_ms"]]
+             .rename(columns={"killer_side": "fk_side", "time_in_round_ms": "fk_time_ms"}))
+
+    tr = pd.concat([side_rows(fr, "Attacker"), side_rows(fr, "Defender")], ignore_index=True)
+    tr = (tr.merge(deaths, on=["match_id", "round_num", "side"], how="left")
+            .merge(kills, on=["match_id", "round_num", "side"], how="left")
+            .merge(first, on=["match_id", "round_num"], how="left"))
+    for c in ["deaths_enemy", "deaths_traded", "isolated_deaths", "deaths_with_dist", "kills_enemy", "trade_kills"]:
+        tr[c] = tr[c].fillna(0).astype(int)
+
+    tr["has_fk"] = tr["fk_side"].notna()
+    tr["first_kill"] = tr["fk_side"] == tr["side"]
+    tr["first_death"] = tr["has_fk"] & ~tr["first_kill"]
+
+    # economia relativa ao adversario (pistol separado: todos comecam iguais)
+    tr["econ_ratio"] = (tr["team_loadout"] / tr["opp_loadout"]).replace([np.inf, -np.inf], np.nan)
+    tr["econ_state"] = np.select(
+        [tr["is_pistol"], tr["econ_ratio"] >= ECON_ADV_RATIO, tr["econ_ratio"] <= ECON_DISADV_RATIO],
+        ["pistol", "vantagem", "desvantagem"], default="parelha")
+    tr.loc[tr["econ_ratio"].isna() & ~tr["is_pistol"], "econ_state"] = "indefinida"
+
+    meta = dm[["match_id", "competition", "competition_group", "map_name", "match_date", "game_no", "series_game"]]
+    tr = tr.merge(meta, on="match_id", how="left")
+    tr["round_label"] = tr["round_num"] + 1
+    return tr.sort_values(["match_date", "match_id", "round_num", "role"]).reset_index(drop=True)
+
+
+def check(tr: pd.DataFrame, processed: Path):
+    fr = pd.read_csv(processed / "fact_round.csv")
+    fk = pd.read_csv(processed / "fact_kill.csv", low_memory=False)
+    ek = fk[fk["death_type"] == "enemy_kill"]
+    ok = True
+
+    def chk(name, cond, detail=""):
+        nonlocal ok
+        ok &= bool(cond)
+        print(("OK   " if cond else "FALHA"), name, detail)
+
+    chk("2 linhas por round", len(tr) == 2 * len(fr), f"({len(tr)} vs {2 * len(fr)})")
+    g = tr.groupby(["match_id", "round_num"])
+    chk("exatamente 1 time vence cada round", (g["won"].sum() == 1).all())
+    chk("first kill: no maximo 1 time por round", (g["first_kill"].sum() <= 1).all())
+    chk("first_kill + first_death = rounds com abate", (tr["first_kill"] | tr["first_death"]).sum() == tr["has_fk"].sum())
+    chk("abates somam o total de enemy_kill", tr["kills_enemy"].sum() == len(ek), f"({tr['kills_enemy'].sum()} vs {len(ek)})")
+    chk("mortes somam o total de enemy_kill", tr["deaths_enemy"].sum() == len(ek))
+    chk("trades <= mortes", (tr["deaths_traded"] <= tr["deaths_enemy"]).all())
+    chk("isoladas <= mortes com distancia", (tr["isolated_deaths"] <= tr["deaths_with_dist"]).all())
+    chk("papel Attacker/Defender: 1 de cada por round",
+        (g["role"].apply(lambda s: set(s) == {"Attacker", "Defender"})).all())
+    chk("nenhum time sem nome", tr["team"].notna().all() and tr["opponent"].notna().all())
+    chk("pistol = 2 por partida com 24+ rounds ou 1 caso contrario",
+        tr[tr["is_pistol"]].groupby("match_id")["round_num"].nunique().between(1, 2).all())
+    print("\nestados de economia:", tr["econ_state"].value_counts().to_dict())
+    print("times:", tr["team"].nunique(), "| partidas:", tr["match_id"].nunique())
+    return ok
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--processed", default="data/processed")
+    a = ap.parse_args()
+    p = Path(a.processed)
+    tr = build(p)
+    ok = check(tr, p)
+    tr.to_csv(p / "team_round.csv", index=False)
+    print(f"\nteam_round.csv: {len(tr):,d} linhas ->", p / "team_round.csv")
+    raise SystemExit(0 if ok else 1)
+
+
+if __name__ == "__main__":
+    main()

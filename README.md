@@ -34,8 +34,43 @@ O foco não é construir uma plataforma completa, mas provar o núcleo da propos
 - `docs/pesquisa/dataset.md` — estrutura e limitações dos dados.
 - `docs/pesquisa/metricas.md` — definições das métricas táticas.
 - `docs/arquitetura/arquitetura.md` — arquitetura técnica.
+- `docs/arquitetura/legado.md` — migração do protótipo anterior e divergências pendentes.
 - `docs/design/design.md` — diretrizes de UX/UI.
 - `specs/` — especificações, planos e tarefas de implementação.
+
+## Estrutura do código
+
+- `src/ingestion/` — leitura dos JSONs, validação e geração das tabelas.
+- `src/analytics/` — métricas e referência da competição.
+- `src/insights/` — diagnósticos e rounds de evidência.
+- `app.py` — aplicação Streamlit.
+- `tests/` — testes e relatórios de conferência.
+- `data/input/` — JSONs fornecidos pelo Hackathon.
+- `data/processed/` — tabelas geradas pela ingestão.
+
+## Como rodar
+
+Todos os comandos a partir da raiz do projeto:
+
+```
+pip install -r requirements.txt
+
+python src/ingestion/ingest.py         --input data/input --output data/processed
+python src/ingestion/validate.py       --input data/input --processed data/processed
+python src/ingestion/build_features.py --processed data/processed
+
+python tests/test_metrics.py
+python tests/smoke_report.py --team ufmt_turuna
+
+streamlit run app.py
+```
+
+O app abre em http://localhost:8501 e lê apenas `data/processed/team_round.csv`. Para abrir direto em uma equipe: `http://localhost:8501/?team=azure_bears_golden`.
+
+Observações sobre o tema do Streamlit:
+
+- Não definir `[theme] base/primaryColor` direto no `.streamlit/config.toml`, pois isso desliga o tema automático e o gráfico fica ilegível no modo escuro. Usar `[theme.light]` e `[theme.dark]`.
+- Não usar seletor CSS genérico (`[class*="st-"]`) para trocar a fonte, pois isso quebra os ícones do Streamlit.
 
 ## Fluxo principal
 

@@ -49,6 +49,35 @@ app.py
 
 A estrutura pode ser simplificada durante a implementação se houver pouco código.
 
+### 4.1 Estrutura atual
+
+Código migrado do protótipo anterior (ver `docs/arquitetura/legado.md`):
+
+```text
+src/
+├── ingestion/
+│   ├── ingest.py          # JSONs → tabelas CSV (data/processed)
+│   ├── validate.py        # confere as tabelas contra os JSONs
+│   └── build_features.py  # gera team_round.csv (1 linha por equipe e round)
+├── analytics/
+│   └── metrics.py         # métricas, referência da competição e intervalos
+└── insights/
+    └── engine.py          # diagnósticos e rounds de evidência
+
+tests/
+├── test_metrics.py        # confere as métricas por caminho independente
+├── smoke_report.py        # relatório de uma equipe no terminal
+└── calibration.py         # taxa de falso alerta com equipes sorteadas
+
+data/
+├── input/                 # JSONs fornecidos pelo Hackathon
+└── processed/             # CSVs gerados pela ingestão
+
+app.py                     # aplicação Streamlit
+```
+
+Diferenças em relação à estrutura sugerida: não há `models/` (os dados circulam como DataFrames do pandas), o benchmark está em `analytics/metrics.py` e a UI está inteira em `app.py`. O pipeline gera CSVs em `data/processed/`, que funcionam como o pré-processamento previsto na seção 6.
+
 ## 5. Camadas
 
 ### 5.1 Ingestion
