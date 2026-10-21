@@ -75,4 +75,4 @@ A aplicação já possui filtros por competição, mapa e lado, percentil entre 
 
 - Os CSVs em `data/processed/` somam cerca de 80 MB e os JSONs em `data/input/` cerca de 194 MB. O app só precisa de `data/processed/team_round.csv`.
 - O CSV usado pelo app não contém nicks de jogadores, apenas nomes de equipes. Confirmar com a organização antes de expor nicks publicamente.
-- Os dados (`data/`) não são versionados no git (ver `.gitignore`). Para rodar, copiar os JSONs para `data/input/` e gerar `data/processed/` com a ingestão.
+- Os JSONs brutos (`data/input/`) não são versionados (ver `.gitignore`); as tabelas geradas em `data/processed/` são, para o app rodar logo após clonar. Para regerá-las, copiar os JSONs para `data/input/` e rodar a ingestão.
