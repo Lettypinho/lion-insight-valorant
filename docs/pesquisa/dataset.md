@@ -6,33 +6,12 @@ Documentar o conjunto de dados fornecido pelo Hackathon, sua estrutura, suas pos
 
 Este arquivo deve ser atualizado sempre que a implementação confirmar ou refutar alguma hipótese sobre os JSONs.
 
-## 2. Inventário preliminar
+## 2. Inventário validado da base completa
 
-Levantamento preliminar da base fornecida:
+A fonte de verdade do Lion Insight é **toda a base tratada presente no repositório**. Nenhuma etapa é descartada durante o
+processamento. Campeonato, etapa, mapa e lado existem como filtros de análise, não como mecanismos de exclusão do dataset.
 
-- 199 arquivos JSON de partidas;
-- 3.859 rounds;
-- aproximadamente 27 mil eliminações;
-- aproximadamente 47 mil registros de dano;
-- cerca de 350 jogadores únicos;
-- 61 equipes identificáveis pelos nomes dos arquivos;
-- 9 mapas;
-- 4 classificatórias.
-
-Distribuição preliminar:
-
-- C1: 55 partidas;
-- C2: 39 partidas;
-- C3: 43 partidas;
-- C4: 62 partidas.
-
-Esses números devem ser revalidados automaticamente pelo pipeline de ingestão e tratados como inventário preliminar até a primeira execução oficial.
-
-### 2.1 Inventário validado pelo pipeline (21/10/2026)
-
-Gerado por `src/ingestion/ingest.py` e conferido por `src/ingestion/validate.py` (resultado: todas as verificações OK, 0 arquivos inválidos).
-
-O inventário preliminar corresponde **exatamente** ao subconjunto UNIVAVA Classificatórias 1 a 4 (199 partidas, 3.859 rounds, 27.114 eliminações, 350 jogadores, 61 equipes, 9 mapas). A base completa em `data/input/` é maior:
+Inventário validado pelo pipeline (`src/ingestion/ingest.py` + `src/ingestion/validate.py`):
 
 | Item | Base completa |
 |---|---|
@@ -40,24 +19,28 @@ O inventário preliminar corresponde **exatamente** ao subconjunto UNIVAVA Class
 | Rounds | 6.618 |
 | Eventos de morte | 46.753 (46.371 abates sobre inimigo, 327 detonações do spike, 46 suicídios, 9 teamkills) |
 | Jogadores únicos (`puuid`) | 411 |
-| Equipes (nome do arquivo) | 68 |
+| Equipes | 68 |
 | Mapas | 10 (Abyss, Ascent, Breeze, Fracture, Haven, Lotus, Pearl, Split, Summit, Sunset) |
 | Partidas com prorrogação | 19 |
 
-Partidas por competição:
+Partidas por contexto:
 
-| Competição | Partidas |
-|---|---|
-| UNIVAVA Classificatória 1 | 55 |
-| UNIVAVA Classificatória 2 | 39 |
-| UNIVAVA Classificatória 3 | 43 |
-| UNIVAVA Classificatória 4 | 62 |
-| UNIVAVA Fase de Grupos | 69 |
-| Rush Series Esquenta | 29 |
-| Rush Series Esquenta 2 | 26 |
-| Rush Series Inclusivo | 13 |
+| Campeonato / circuito | Etapa | Partidas |
+|---|---|---:|
+| UNIVAVA | Classificatória 1 | 55 |
+| UNIVAVA | Classificatória 2 | 39 |
+| UNIVAVA | Classificatória 3 | 43 |
+| UNIVAVA | Classificatória 4 | 62 |
+| UNIVAVA | Fase de Grupos | 69 |
+| Rush Series | Esquenta | 29 |
+| Rush Series | Esquenta 2 | 26 |
+| Rush Series | Inclusivo | 13 |
 
-Decisão pendente: definir se o benchmark do MVP usa a base completa ou apenas as competições UNIVAVA.
+### 2.1 Regra de referência
+
+Por padrão, a interface deixa toda a base disponível. A referência de uma métrica é calculada com os **outros times do
+mesmo recorte**. Se nenhum filtro for aplicado, o recorte é a base completa. Se o usuário filtrar campeonato/circuito,
+etapa, mapa ou lado, o mesmo filtro é aplicado ao time analisado e à referência.
 
 ## 3. Estrutura geral observada
 
@@ -188,7 +171,11 @@ Não reconstruir bracket oficial sem fonte confiável.
 ### 9.3 IDs
 Agentes, armas, armaduras ou mapas podem aparecer como IDs.
 
-Criar mapeamentos locais somente quando houver fonte confiável dentro do material disponível.
+Criar mapeamentos locais somente com fonte pública confiável e utilizá-los apenas para tradução de IDs estáticos.
+Os dados de desempenho continuam vindo exclusivamente dos JSONs fornecidos pela organização.
+
+Implementado em `data/reference/`: `armas.csv`, `agentes.csv` e `armaduras.csv`. O pipeline grava nome do agente, função,
+arma e armadura em `player_round.csv` quando os IDs estão presentes.
 
 ### 9.4 Coordenadas
 Existem coordenadas em eventos, mas visualizações espaciais confiáveis exigem calibração de cada mapa.

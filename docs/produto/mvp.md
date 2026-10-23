@@ -12,7 +12,7 @@ Ao final, deve ser possível executar a aplicação, selecionar uma equipe e dem
 
 - quais partidas dela existem na base;
 - como ela se comporta em algumas situações táticas;
-- como esse desempenho se compara à competição;
+- como esse desempenho se compara à referência do recorte;
 - quais diagnósticos podem ser extraídos;
 - quais rounds sustentam esses diagnósticos.
 
@@ -32,7 +32,7 @@ JSONs
 ### MVP-01 — Carregar os dados
 A aplicação deve processar os arquivos JSON fornecidos.
 
-### MVP-02 — Identificar contexto da competição
+### MVP-02 — Identificar contexto das partidas
 A aplicação deve identificar, quando disponível nos arquivos e nomes dos arquivos:
 - classificatória;
 - partida;
@@ -57,8 +57,8 @@ Prioridade inicial:
 
 Economia pode entrar se estiver validada a tempo.
 
-### MVP-06 — Comparar com a competição
-Para métricas compatíveis, a aplicação deve calcular uma referência da competição e apresentar a diferença para a equipe selecionada.
+### MVP-06 — Comparar com a referência do recorte
+Para métricas compatíveis, a aplicação deve comparar a equipe com os outros times que permanecem no mesmo recorte. Sem filtros, a base completa é utilizada; com filtros, as mesmas condições são aplicadas ao time e à referência.
 
 ### MVP-07 — Gerar insights
 A aplicação deve classificar resultados relevantes como:
@@ -124,7 +124,7 @@ O MVP é considerado funcional quando:
 1. processa a base real;
 2. permite selecionar ao menos uma equipe;
 3. calcula corretamente as métricas escolhidas;
-4. compara com uma referência da competição;
+4. compara com uma referência contextual formada pelos outros times do recorte;
 5. apresenta pelo menos dois insights explicáveis;
 6. permite abrir evidências em nível de round;
 7. pode ser demonstrado de ponta a ponta durante o pitch.

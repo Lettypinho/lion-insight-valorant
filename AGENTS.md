@@ -28,7 +28,7 @@ Antes de implementar qualquer funcionalidade, consultar:
 - Não utilizar dados externos de partidas de VALORANT.
 - Não implementar funcionalidades fora do escopo do MVP sem solicitação explícita.
 - Todo insight deve ser reproduzível a partir dos dados.
-- Toda comparação deve informar qual referência foi utilizada.
+- Toda comparação deve informar qual referência foi utilizada. A base completa é o padrão; filtros apenas recortam a análise e nunca eliminam dados da fonte.
 - Toda métrica percentual deve manter também numerador, denominador e tamanho da amostra.
 - Amostras pequenas devem ser sinalizadas.
 - Priorizar simplicidade e entrega do MVP.

@@ -60,7 +60,7 @@ src/
 │   ├── validate.py        # confere as tabelas contra os JSONs
 │   └── build_features.py  # gera team_round, player_round, kill_events e map_silhouette (CSV)
 ├── analytics/
-│   ├── metrics.py         # métricas, referência da competição, intervalos e análise por mapa
+│   ├── metrics.py         # métricas, referência contextual, intervalos e análise por mapa
 │   ├── players.py         # métricas, elenco e insights por jogador
 │   ├── kill_types.py      # tipo de abate (arma, habilidade, ultimate...)
 │   ├── weapons.py         # armas: abates/mortes por arma e rendimento com a arma do round
@@ -80,7 +80,7 @@ src/
         ├── jogadores.py   # aba Jogadores
         ├── mapa_tatico.py # aba Mapa tático
         ├── partidas.py    # aba Partidas e rounds
-        ├── comparacao.py  # aba Comparação com a competição
+        ├── comparacao.py  # aba Comparação com a referência
         ├── rounds.py      # aba Rounds de evidência
         └── metodologia.py # aba Metodologia
 
@@ -89,13 +89,18 @@ tests/
 ├── test_objectives_matches.py # casos pequenos: sites, placar, referência de partida, por mapa
 ├── test_players.py        # casos pequenos por jogador e soma do elenco = equipe
 ├── test_kill_types.py     # classificação e distribuição por tipo de abate
+├── test_weapons.py        # nomes e métricas relacionadas a armas
+├── test_references.py     # garante que agentes e armaduras usados na base têm tradução
 ├── smoke_report.py        # relatório de uma equipe no terminal
 └── calibration.py         # taxa de falso alerta com equipes sorteadas
 
 data/
-├── input/                 # JSONs fornecidos pelo Hackathon
+├── input/                 # 336 JSONs fornecidos pelo Hackathon
 ├── processed/             # CSVs gerados pela ingestão
-└── reference/armas.csv    # nomes das armas (catálogo estático, usado por build_features.py)
+└── reference/             # catálogos estáticos usados apenas para traduzir IDs
+    ├── armas.csv
+    ├── agentes.csv
+    └── armaduras.csv
 
 app.py                     # ponto de entrada: só orquestra a página
 ```
@@ -114,7 +119,7 @@ Representações simples das entidades necessárias. Evitar modelagem excessiva.
 Responsável exclusivamente por cálculos. A interface não deve implementar lógica de métrica.
 
 ### 5.4 Benchmark
-Calcula referências da competição usando as mesmas regras das métricas de equipe.
+Calcula referências usando todos os outros times do recorte atual, com as mesmas regras das métricas de equipe.
 
 ### 5.5 Insight Engine
 Transforma diferenças relevantes em diagnósticos explicáveis. No MVP, utilizar regras determinísticas.

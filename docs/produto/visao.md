@@ -2,7 +2,7 @@
 
 ## 1. Contexto
 
-O Hackathon disponibilizou um conjunto de partidas reais de uma competição de VALORANT. Esses arquivos contêm informações detalhadas sobre partidas, jogadores, rounds, eliminações, dano, economia e situações relacionadas aos objetivos do jogo.
+O Hackathon disponibilizou um conjunto de partidas reais de diferentes etapas e competições de VALORANT. Esses arquivos contêm informações detalhadas sobre partidas, jogadores, rounds, eliminações, dano, economia e situações relacionadas aos objetivos do jogo.
 
 Esse volume de informação permite ir além de estatísticas tradicionais como KDA, headshot percentage e taxa de vitória.
 
@@ -21,7 +21,7 @@ Uma equipe pode saber quantas eliminações conseguiu ou quantos rounds venceu, 
 - Como se comporta em situações de pós-plant?
 - Qual é sua eficiência em retakes?
 - A condição econômica interfere significativamente no resultado?
-- Esse comportamento é comum ou está acima/abaixo do padrão observado na competição?
+- Esse comportamento é comum ou está acima/abaixo do padrão observado no recorte comparável?
 
 O problema central é transformar dados brutos em informações úteis para tomada de decisão competitiva.
 
@@ -56,18 +56,16 @@ A análise deve identificar padrões relacionados a situações relevantes de jo
 
 O objetivo não é apenas exibir métricas, mas transformar essas métricas em pontos fortes e pontos de atenção.
 
-### 3.2 Análise da competição
+### 3.2 Análise contextual da base
 
-As partidas da competição também serão utilizadas como base de referência.
-
-A mesma métrica calculada para uma equipe poderá ser comparada com o comportamento observado no restante da competição.
+Toda a base tratada permanece disponível como universo de análise. A mesma métrica calculada para uma equipe pode ser comparada com o comportamento dos outros times do recorte escolhido. Sem filtros, a referência usa a base completa; com filtros, usa campeonato/circuito, etapa, mapa e lado equivalentes.
 
 Exemplo:
 
 > Equipe X — Conversão após First Kill: 74%  
-> Referência da competição: 65%
+> Referência do recorte: 65%
 
-A comparação deve ajudar o usuário a entender se determinado comportamento está acima, próximo ou abaixo do padrão observado no campeonato.
+A comparação deve ajudar o usuário a entender se determinado comportamento está acima, próximo ou abaixo do padrão observado no recorte.
 
 Quando houver amostra suficiente, a referência poderá ser contextualizada por mapa, lado ou classificatória.
 
@@ -81,7 +79,7 @@ Em vez de apresentar somente:
 
 A solução deve ser capaz de apresentar algo como:
 
-> A equipe apresenta boa capacidade de conversão quando consegue a primeira eliminação, acima da referência da competição. Entretanto, apresenta dificuldade para se recuperar quando sofre a primeira morte.
+> A equipe apresenta boa capacidade de conversão quando consegue a primeira eliminação, acima da referência do recorte. Entretanto, apresenta dificuldade para se recuperar quando sofre a primeira morte.
 
 Sempre que possível, o usuário deve conseguir abrir as partidas e rounds que sustentam aquela análise.
 
@@ -103,11 +101,11 @@ Dados da partida
 
 O usuário deve conseguir:
 
-1. visualizar o contexto da competição;
+1. visualizar o contexto da base e dos filtros;
 2. selecionar uma equipe;
 3. consultar suas partidas;
 4. visualizar métricas táticas;
-5. comparar essas métricas com referências da competição;
+5. comparar essas métricas com referências contextuais;
 6. identificar pontos fortes e pontos de atenção;
 7. consultar os rounds que sustentam os insights.
 
@@ -118,7 +116,7 @@ Entregar um MVP funcional que também sirva como protótipo demonstrável durant
 O MVP deve provar três coisas:
 
 1. os dados fornecidos podem ser transformados em métricas táticas úteis;
-2. o campeonato pode servir como contexto de comparação;
+2. a base completa e seus recortes podem servir como contexto de comparação;
 3. as métricas podem ser transformadas em diagnósticos explicáveis.
 
 ## 8. Visão futura

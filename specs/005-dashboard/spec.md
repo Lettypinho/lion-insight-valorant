@@ -7,7 +7,7 @@ Disponibilizar o MVP em uma interface funcional e demonstrável.
 - RF-001 — selecionar equipe.
 - RF-002 — exibir resumo da amostra.
 - RF-003 — exibir métricas principais.
-- RF-004 — exibir referência da competição e diferença.
+- RF-004 — exibir referência do recorte e diferença.
 - RF-005 — exibir insights.
 - RF-006 — permitir abrir evidências.
 - RF-007 — evitar reprocessamento integral em cada interação.

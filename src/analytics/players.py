@@ -73,6 +73,21 @@ def roster(df: pd.DataFrame, team: str) -> pd.DataFrame:
     g["adr"] = g["dano"] / g["rounds"]
     duels = g["primeiros_abates"] + g["primeiras_mortes"]
     g["open_win"] = g["primeiros_abates"] / duels.where(duels > 0)
+
+    # Agentes/funções mais usados no recorte. Como o agente se repete em todos os rounds da partida,
+    # ordenar por frequência de rounds também funciona como uma leitura simples de preferência no recorte.
+    if "agent" in d.columns:
+        def _top(values):
+            vc = values.dropna().astype(str).value_counts()
+            return ", ".join(vc.index[:3]) if len(vc) else "—"
+        agent = d.groupby("player")["agent"].apply(_top).rename("agentes")
+        roles = d.groupby("player")["agent_role"].apply(_top).rename("funcoes") if "agent_role" in d.columns else None
+        g = g.merge(agent, on="player", how="left")
+        if roles is not None:
+            g = g.merge(roles, on="player", how="left")
+    else:
+        g["agentes"] = "—"
+        g["funcoes"] = "—"
     return g.sort_values(["rounds", "abates"], ascending=False).reset_index(drop=True)
 
 

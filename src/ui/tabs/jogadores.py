@@ -24,6 +24,8 @@ def _roster(df_p: pd.DataFrame, f: Filters, names: dict, by_player: dict):
     ro = P.roster(df_p, f.team)
     st.dataframe(pd.DataFrame({
         "Jogador": ro["puuid"].map(names).fillna("?"),
+        "Agentes mais usados": ro.get("agentes", pd.Series(["—"] * len(ro))),
+        "Função(ões)": ro.get("funcoes", pd.Series(["—"] * len(ro))),
         "Partidas": ro["partidas"], "Rounds": ro["rounds"], "Abates": ro["abates"], "Mortes": ro["mortes"],
         "K/D": ro["kd"].round(2), "Dano por round": ro["adr"].round(0),
         "Primeiros abates": ro["primeiros_abates"], "Primeiras mortes": ro["primeiras_mortes"],
@@ -104,7 +106,9 @@ def _player(df_p: pd.DataFrame, f: Filters, res: pd.DataFrame, dg: dict):
     R = res.set_index("key")
     n_matches = mine["match_id"].nunique()
     st.subheader(f.nick or "Jogador")
-    st.caption(f"{n_matches} partida(s) e {len(mine)} rounds pela equipe neste recorte. "
+    agents = ", ".join(mine["agent"].dropna().value_counts().index[:3]) if "agent" in mine.columns else "—"
+    roles = ", ".join(mine["agent_role"].dropna().value_counts().index[:3]) if "agent_role" in mine.columns else "—"
+    st.caption(f"{n_matches} partida(s) e {len(mine)} rounds pela equipe neste recorte · Agentes: {agents} · Função(ões): {roles}. "
                "Referência: todos os outros jogadores, com os mesmos filtros.")
     if n_matches < M.MIN_MATCHES:
         st.warning(f"Amostra pequena: {n_matches} partida(s). Os números descrevem o que aconteceu, mas não confirmam padrão.")

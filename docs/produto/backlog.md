@@ -16,8 +16,8 @@
 - [ ] Implementar uma métrica de trade.
 - [ ] Calcular Post-Plant Conversion.
 - [ ] Calcular Retake Success.
-- [ ] Calcular referência da competição.
-- [ ] Comparar equipe x competição.
+- [x] Calcular referência contextual com os outros times do recorte.
+- [x] Comparar equipe x referência do recorte.
 - [ ] Gerar pontos fortes e pontos de atenção.
 - [ ] Exibir tamanho da amostra.
 - [ ] Permitir consultar rounds usados como evidência.
@@ -37,7 +37,7 @@
 - [ ] Evolução de uma métrica ao longo das partidas.
 
 ## P2 — Futuro
-- [ ] Múltiplos campeonatos.
+- [x] Múltiplos campeonatos/etapas disponíveis como filtros sobre a base completa.
 - [ ] Upload de datasets.
 - [ ] Heatmaps.
 - [ ] Análise espacial de trades.

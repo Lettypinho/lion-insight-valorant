@@ -4,19 +4,37 @@ import streamlit as st
 
 from src.analytics import metrics as M
 from src.insights import engine as D
-from src.ui.formatting import ROLE_PT, num, pct, team_name
+from src.ui.formatting import ROLE_PT, competition_name, num, pct, team_name
 from src.ui.sidebar import Filters
 
 QUAL = {"ponto_forte": ("Ponto forte", "✓", "#0ca30c"), "ponto_de_atencao": ("Ponto de atenção", "!", "#d03b3b"),
         "misto": ("Contraste", "⇄", "#2a78d6"), "perfil": ("Perfil", "◆", "#6250d6")}
 
 
+def _context_text(f: Filters) -> str:
+    parts = []
+    if f.groups:
+        parts.append(", ".join(competition_name(x) for x in f.groups))
+    elif not f.stages:
+        parts.append("base completa")
+    if f.stages:
+        parts.append(", ".join(competition_name(x) for x in f.stages))
+    elif f.groups:
+        parts.append("todas as etapas")
+    if f.maps:
+        parts.append(", ".join(f.maps))
+    else:
+        parts.append("todos os mapas")
+    if f.role:
+        parts.append(f.side.lower())
+    return " · ".join(parts)
+
+
 def header(df_all: pd.DataFrame, mine: pd.DataFrame, f: Filters):
     n_rounds, n_matches = len(mine), mine["match_id"].nunique()
+    st.caption("LION INSIGHT · RAIO-X TÁTICO PÓS-PARTIDA")
     st.title(team_name(f.team))
-    filt = " · ".join(x for x in [", ".join(f.comps) if f.comps else "todas as competições",
-                                  ", ".join(f.maps) if f.maps else "todos os mapas", f.side.lower() if f.role else ""] if x)
-    st.markdown(f'<p class="sub">{n_rounds} rounds em {n_matches} partidas · {filt}</p>', unsafe_allow_html=True)
+    st.markdown(f'<p class="sub">{n_rounds} rounds em {n_matches} partidas · {_context_text(f)}</p>', unsafe_allow_html=True)
 
     ctx = M.apply_filters(df_all, f.comps or None, f.maps or None, None)  # contexto: sem filtro de lado
     c1, c2, c3 = st.columns(3)
@@ -25,8 +43,14 @@ def header(df_all: pd.DataFrame, mine: pd.DataFrame, f: Filters):
         if r:
             a, b = a[a["role"] == r], b[b["role"] == r]
         if len(a):
-            col.metric(label, pct(a["won"].mean()), f"{num((a['won'].mean() - b['won'].mean()) * 100, 1, True)} pp vs referência ({pct(b['won'].mean())})",
+            delta = ((a["won"].mean() - b["won"].mean()) * 100) if len(b) else float("nan")
+            ref = pct(b["won"].mean()) if len(b) else "—"
+            col.metric(label, pct(a["won"].mean()), f"{num(delta, 1, True)} pp vs referência ({ref})" if len(b) else "sem referência",
                        delta_color="off", help=f"{int(a['won'].sum())} de {len(a)} rounds. Contexto geral; não entra nos diagnósticos.")
+    current = M.apply_filters(df_all, f.comps or None, f.maps or None, f.role)
+    ref = current[current["team"] != f.team]
+    st.caption(f"Referência atual: {ref['team'].nunique()} outros times · {ref['match_id'].nunique()} partidas no mesmo recorte. "
+               "Os diagnósticos abaixo usam métricas específicas, amostra e incerteza — não apenas taxa de rounds vencidos.")
     if n_matches < M.MIN_MATCHES:
         st.warning(f"Só {n_matches} partida(s) com esses filtros: poucos dados para afirmar padrões. "
                    "Os diagnósticos ficam desativados até haver amostra suficiente.")
@@ -46,6 +70,7 @@ def metrics_table(res: pd.DataFrame) -> pd.DataFrame:
     t = t.sort_values("_good", ascending=False)
     return pd.DataFrame({
         "Métrica": t["label"] + t["higher_better"].map({True: "", False: " (menor é melhor)"}),
+        "O que mede": t["what"],
         "Time": t["rate"] * 100,
         "Referência": t["ref_rate"] * 100,
         "Diferença": [f"{num(v, 1, True)} pp" for v in t["delta_pp"]],
@@ -86,7 +111,7 @@ def show_kind_table(bd: pd.DataFrame, who: str):
 def evidence_table(df_f: pd.DataFrame, team: str, key: str, quality, key_col: str = "team"):
     ev = D.evidence(df_f, team, key, quality, key_col)
     out = pd.DataFrame({
-        "Data": pd.to_datetime(ev["match_date"]).dt.strftime("%d/%m/%Y"), "Competição": ev["competition"],
+        "Data": pd.to_datetime(ev["match_date"]).dt.strftime("%d/%m/%Y"), "Competição": ev["competition"].map(competition_name),
         "Mapa": ev["map_name"], "Adversário": ev["opponent"].map(team_name), "Round": ev["round_label"],
         "Lado": ev["role"].map(ROLE_PT), "Resultado": ev["resultado"], "O que aconteceu": ev["detalhe"]})
     return ev, out

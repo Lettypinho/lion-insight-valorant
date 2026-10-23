@@ -6,8 +6,8 @@ Gera, a partir das tabelas de data/processed:
   * `kill_events.csv`    um abate sobre inimigo por linha, com posicoes - mapa tatico e detalhe de round;
   * `map_silhouette.csv` amostra das posicoes de todos os jogadores por mapa - desenha o mapa sem imagem externa.
 
-Le as tabelas de data/processed (saida do ingest.py) e a tabela de nomes de armas data/reference/armas.csv
-(catalogo estatico, uso autorizado pela organizacao; ver docs/pesquisa/dataset.md). Nenhum dado externo de partida.
+Le as tabelas de data/processed (saida do ingest.py) e os catalogos locais de referencia em data/reference/
+(armas, agentes e armaduras; usados apenas para traduzir IDs estaticos do jogo). Nenhum dado externo de partida.
 As metricas em si (taxas, referencia, diagnosticos) ficam em src/analytics/metrics.py:
 aqui so guardamos os fatos de cada round, de forma que qualquer metrica vire
 uma soma/contagem simples.
@@ -32,6 +32,26 @@ def load_weapons(processed: Path) -> pd.DataFrame:
     """Tabela item_id (UUID maiusculo) -> nome, categoria, preco, tipo. Vazia se o arquivo nao existir."""
     p = processed.parent / "reference" / "armas.csv"
     return pd.read_csv(p, dtype={"preco": "Int64"}).set_index("item_id") if p.exists() else pd.DataFrame()
+
+
+def load_agents(processed: Path) -> pd.DataFrame:
+    """Tabela agent_id -> nome e funcao. Catalogo local usado somente para exibicao amigavel."""
+    p = processed.parent / "reference" / "agentes.csv"
+    if not p.exists():
+        return pd.DataFrame()
+    df = pd.read_csv(p)
+    df["agent_id"] = df["agent_id"].astype(str).str.lower()
+    return df.set_index("agent_id")
+
+
+def load_armors(processed: Path) -> pd.DataFrame:
+    """Tabela armor_id -> nome. Catalogo local usado somente para exibicao amigavel."""
+    p = processed.parent / "reference" / "armaduras.csv"
+    if not p.exists():
+        return pd.DataFrame()
+    df = pd.read_csv(p)
+    df["armor_id"] = df["armor_id"].astype(str).str.upper()
+    return df.set_index("armor_id")
 
 
 def kill_kind(damage_type, damage_item, item_kind: dict = None) -> str:
@@ -164,10 +184,17 @@ def build_player_round(processed: Path, tr: pd.DataFrame) -> pd.DataFrame:
     """UMA linha por (partida, round, jogador). Mesmas regras de team_round, vistas pelo jogador:
     so abates sobre inimigo contam; first kill/death sao do jogador; contexto do round vem de team_round."""
     rp = pd.read_csv(processed / "fact_round_player.csv",
-                     usecols=["match_id", "round_num", "puuid", "team_name", "damage_dealt", "weapon_id"])
-    # arma principal do round (fact_round_player.weapon_id): em 91% dos abates com arma, e a arma do abate
+                     usecols=["match_id", "round_num", "puuid", "team_name", "damage_dealt", "weapon_id", "armor_id"])
+    # arma e armadura do round; agente e fixo dentro da partida
     w = load_weapons(processed)
     rp["weapon"] = rp["weapon_id"].str.upper().map(w["nome"]) if len(w) else np.nan
+    ar = load_armors(processed)
+    rp["armor"] = rp["armor_id"].str.upper().map(ar["nome"]) if len(ar) else np.nan
+    pm = pd.read_csv(processed / "fact_player_match.csv", usecols=["match_id", "puuid", "team_name", "agent_id"])
+    rp = rp.merge(pm, on=["match_id", "puuid", "team_name"], how="left", validate="many_to_one")
+    ag = load_agents(processed)
+    rp["agent"] = rp["agent_id"].str.lower().map(ag["nome"]) if len(ag) else np.nan
+    rp["agent_role"] = rp["agent_id"].str.lower().map(ag["funcao"]) if len(ag) else np.nan
     fk = pd.read_csv(processed / "fact_kill.csv", low_memory=False)
     ek = fk[fk["death_type"] == "enemy_kill"].copy()
     has_dist = ek["victim_nearest_ally_dist"].notna()
@@ -219,6 +246,11 @@ def check_player_round(pr: pd.DataFrame, tr: pd.DataFrame) -> bool:
     chk("player_round: first kill do time = algum jogador", (g["first_kill"].any().reindex(t.index) == t["first_kill"]).all())
     chk("player_round: toda arma registrada tem nome", pr.loc[pr["weapon_id"].notna(), "weapon"].notna().all(),
         f"({pr['weapon_id'].isna().sum()} linhas sem arma registrada na base)")
+    chk("player_round: todo agente tem nome e funcao",
+        pr.loc[pr["agent_id"].notna(), ["agent", "agent_role"]].notna().all().all())
+    chk("player_round: toda armadura registrada tem nome",
+        pr.loc[pr["armor_id"].notna(), "armor"].notna().all(),
+        f"({pr['armor_id'].isna().sum()} linhas sem armadura registrada na base)")
     return ok
 
 

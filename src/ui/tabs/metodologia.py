@@ -1,4 +1,4 @@
-"""Aba 4: metodologia — de onde vêm os números e quando o sistema afirma algo."""
+"""Como os números são produzidos e quais são as limitações da leitura."""
 import pandas as pd
 import streamlit as st
 
@@ -6,30 +6,46 @@ from src.analytics import metrics as M
 
 
 def render():
+    st.subheader("Como calculamos")
     st.markdown(f"""
-**De onde vêm os números.** Apenas dos arquivos JSON de partidas fornecidos pela organização do Hackathon: nenhuma API, coleta ou
-dado externo. A análise é toda pós-partida.
+**1. Dados de desempenho.** Todas as estatísticas de partidas vêm exclusivamente dos JSONs fornecidos pela organização do
+Hackathon. Catálogos públicos são usados **somente para traduzir IDs estáticos do jogo** (por exemplo, agente, arma e
+armadura); eles não adicionam resultados, eventos ou estatísticas de partidas. A análise é exclusivamente pós-partida.
 
-**Como lemos um round.** Para cada time em cada round registramos quem fez o primeiro abate, quantas mortes foram trocadas em até 5 s (só contam as mortes com aliado vivo: o último vivo não tinha quem o trocasse),
-quantas mortes aconteceram longe dos aliados (aliado vivo mais próximo a mais de 3000 unidades do jogo), a economia relativa ao
-adversário (vantagem: loadout ≥ 1,25× o do adversário; desvantagem: ≤ 0,80×) e o que aconteceu com o spike — inclusive
-se quem plantou foi abatido em até 5 s sem troca (plant sem cobertura, do lado do ataque; punição ao plant, do lado da defesa).
+**2. Como lemos um round.** Para cada time em cada round registramos primeiro abate, trocas em até 5 s, mortes isoladas,
+economia relativa, plant, pós-plant e retake. Uma morte só entra como possível troca quando havia aliado vivo. Para morte
+isolada, usamos a distância ao aliado vivo mais próximo; acima de 3000 unidades do jogo é classificada como isolada.
 
-**A referência.** É a taxa de todos os *outros* times, nas mesmas condições (competição, mapa e lado). O time nunca é comparado com ele mesmo.
+**3. O que significa “referência”.** É o conjunto dos **outros times** que permanece depois dos filtros escolhidos. Sem
+filtro de campeonato/etapa, a base completa entra no contexto. Se o usuário filtra campeonato, etapa, mapa ou lado, o
+mesmo recorte é aplicado ao time e à referência. O time nunca é comparado com ele mesmo.
 
-**Quando o sistema afirma algo.** Cada partida conta como uma unidade, porque rounds da mesma partida não são independentes.
-Só dizemos "acima" ou "abaixo" quando a diferença supera a incerteza do time *e* da referência, vale pelo menos
-{M.MIN_DELTA_PP:.0f} pontos percentuais e há ao menos {M.MIN_N} rounds ou eventos em {M.MIN_MATCHES} partidas.
-Testamos o método com times sorteados ao acaso, sem diferença real: o falso alerta ficou entre 4% e 7% (esperado: 5%).
+**4. Quando chamamos algo de ponto forte ou atenção.** Cada partida é tratada como uma unidade, porque rounds da mesma
+partida não são independentes. Só dizemos “acima” ou “abaixo” quando a diferença supera a incerteza do time e da referência,
+vale pelo menos {M.MIN_DELTA_PP:.0f} pontos percentuais e há ao menos {M.MIN_N} rounds/eventos em {M.MIN_MATCHES} partidas.
+Nos testes de calibração com times aleatórios sem diferença real, a taxa de falso alerta ficou próxima do esperado para 95% de confiança.
 
-**O que ainda pode enganar.**
-- São {len(M.METRICS)} comparações por time, então cerca de {str(round(len(M.METRICS) * 0.05, 1)).replace(".", ",")} alerta por acaso é esperado. Leia como indício.
-- Um time muito forte tende a ficar acima da referência em quase tudo. Os contrastes dentro do próprio time costumam ser mais úteis.
-- A referência mistura adversários de níveis diferentes e não corrige a força do adversário em cada partida.
-- Só temos posições no momento de kills, plant e defuse, não o trajeto completo, e nenhuma informação de habilidades usadas por round.
+**5. Como usar na prática.** O diagnóstico é um ponto de partida. Abra as evidências, observe os rounds reais e só então
+transforme o padrão em hipótese de treino, ajuste tático ou revisão de VOD.
 """)
-    st.markdown(f"**As {len(M.METRICS)} métricas**")
-    st.dataframe(pd.DataFrame({"Grupo": [m.group for m in M.METRICS], "Métrica": [m.label for m in M.METRICS],
-                               "O que mede": [m.what for m in M.METRICS],
-                               "Melhor quando": ["maior" if m.higher_better else "menor" for m in M.METRICS]}),
-                 hide_index=True, width="stretch")
+
+    with st.expander("Limitações importantes", expanded=False):
+        st.markdown(f"""
+- São {len(M.METRICS)} métricas por recorte; algum resultado pode aparecer por acaso. Leia os diagnósticos como **indícios**.
+- A referência mistura adversários de níveis diferentes e não corrige a força de cada adversário.
+- Uma amostra pequena continua útil para descrição, mas não confirma padrão.
+- As posições disponíveis são snapshots de eventos (kills, plant e defuse), não o trajeto completo dos jogadores.
+- O dataset não traz efeitos de habilidades por round com consistência suficiente para análise causal de utilitários.
+""")
+
+    st.markdown(f"**Glossário das {len(M.METRICS)} métricas de equipe**")
+    st.dataframe(
+        pd.DataFrame({
+            "Grupo": [m.group for m in M.METRICS],
+            "Métrica": [m.label for m in M.METRICS],
+            "O que mede": [m.what for m in M.METRICS],
+            "Leitura favorável": ["quanto maior" if m.higher_better else "quanto menor" for m in M.METRICS],
+        }),
+        hide_index=True,
+        width="stretch",
+    )

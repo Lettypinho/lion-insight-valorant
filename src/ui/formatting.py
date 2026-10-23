@@ -18,3 +18,12 @@ def pct(v, d=0):
 def num(v, d=1, sign=False):
     s = f"{v:+.{d}f}" if sign else f"{v:.{d}f}"
     return s.replace(".", ",")
+
+
+def competition_name(value: str) -> str:
+    """Deixa códigos/nomes de competição mais amigáveis sem alterar o valor usado nos filtros."""
+    if value is None or pd.isna(value):
+        return "—"
+    s = str(value)
+    s = s.replace("UNIVAVA", "UNIVAVÁ").replace("Classificatoria", "Classificatória")
+    return s

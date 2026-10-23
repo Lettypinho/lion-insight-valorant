@@ -9,7 +9,9 @@ html, body, .stApp, .stApp p, .stApp label, .stApp li, .stApp h1, .stApp h2, .st
 .stApp td, .stApp th, .stApp button, .stApp input, .stApp textarea,
 [data-testid="stMetricValue"], [data-testid="stMetricLabel"], [data-testid="stMetricDelta"],
 [data-testid="stExpander"] summary p { font-family: 'Figtree', system-ui, sans-serif; }
-.block-container { padding-top: 2.2rem; max-width: 1180px; }
+.block-container { padding-top: 1.6rem; max-width: 1240px; }
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p { line-height: 1.35; }
+[data-testid="stSidebar"] hr { margin: .7rem 0; }
 h1 { font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.1rem; }
 [data-testid="stMetricValue"] { font-variant-numeric: tabular-nums; font-weight: 650; }
 .sub { opacity: .72; font-size: .95rem; margin: 0 0 1.1rem 0; }

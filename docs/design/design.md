@@ -9,21 +9,20 @@ Definir a experiência mínima necessária para demonstrar o valor do Lion Insig
 Selecionar equipe  
 → Entender identidade do time  
 → Encontrar ponto forte ou fragilidade  
-→ Comparar com a competição  
+→ Comparar com a referência do recorte  
 → Abrir evidências
 
 ## 3. Tela principal
 
 ### Cabeçalho
-Exibir nome do produto, competição atual e equipe selecionada.
+Exibir nome do produto, equipe selecionada e contexto atual (base completa ou filtros aplicados).
 
 ### Filtros principais
-Prioridade:
-- equipe;
-- mapa, se implementado;
-- classificatória, se implementado.
+Organizar em duas etapas para reduzir carga cognitiva:
+1. **Quem analisar** — equipe e, opcionalmente, jogador;
+2. **Contexto da análise** — campeonato/circuito, etapa, mapa e lado.
 
-Evitar excesso de filtros no MVP.
+Nenhum filtro de contexto selecionado significa **base completa**. O filtro nunca remove dados da fonte: apenas define o recorte usado na análise e na referência.
 
 ## 4. Resumo da equipe
 
@@ -39,7 +38,7 @@ Exibir:
 Cada card deve conter:
 - nome da métrica;
 - valor da equipe;
-- referência da competição;
+- referência do recorte;
 - diferença em pontos percentuais;
 - tamanho da amostra.
 
@@ -113,7 +112,7 @@ Ao abrir um insight, mostrar tabela com:
 
 ## 8. Competição
 
-Se houver tempo, incluir uma visão simples da competição com classificatórias, equipes, partidas e referências gerais.
+Se houver tempo, incluir uma visão simples da base/competição com classificatórias, equipes, partidas e referências gerais.
 
 Não construir chaveamento visual sem dados confiáveis sobre o bracket.
 

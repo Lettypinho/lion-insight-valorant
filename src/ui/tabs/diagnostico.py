@@ -88,14 +88,18 @@ def _map_detail(m: dict, df_f: pd.DataFrame, team: str):
 
 
 def render(dg: dict, R: pd.DataFrame, res: pd.DataFrame, df_f: pd.DataFrame, team: str, by_map: list):
+    st.info(
+        "**Comece por aqui.** Ponto forte = diferença favorável confirmada; ponto de atenção = diferença desfavorável "
+        "confirmada. Abra **Ver os rounds que sustentam isso** para sair do número e chegar aos lances reais."
+    )
     # ---------------------------------------------------------------- panorama geral
     st.subheader("Panorama geral")
-    st.caption("Todos os mapas do recorte. Referência: os outros times, com os mesmos filtros.")
+    st.caption("Todos os mapas do recorte. Referência: os outros times nas mesmas condições escolhidas na barra lateral.")
     if dg["insights"]:
         _cards(dg, R, df_f, team)
     else:
-        st.info("Nenhuma diferença confirmada em relação à competição somando todos os mapas. "
-                "Diferenças de mapas específicos podem se anular na soma: veja a análise por mapa abaixo.")
+        st.info("Nenhuma diferença foi confirmada no panorama geral deste recorte. "
+                "Isso não significa que os números sejam iguais: veja a tabela e a análise por mapa para diferenças descritivas.")
     with st.expander("Todos os números do panorama geral"):
         show_metrics_table(res)
         na = res.loc[res["n"] == 0, "label"].tolist()
