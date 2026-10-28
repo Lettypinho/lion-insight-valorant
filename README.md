@@ -94,3 +94,6 @@ Dados da partida
 ## Regra principal
 
 Nenhum insight pode ser apresentado sem ser derivado de dados disponíveis e rastreável até as métricas e rounds que o sustentam.
+
+## Link do Pitch
+https://youtu.be/rcwfV3QOZuQ?is=4WEZh3JbPFXqb-rm
